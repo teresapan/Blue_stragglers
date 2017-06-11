@@ -1,0 +1,19 @@
+@node Identification, If, History, Commands
+
+@iftex
+@syntax Identification.
+@end iftex
+@example
+Syntax: IDENTIFICATION str
+@end example
+@pindex Identification
+@findex labels, identification
+
+   IDENTIFICATION puts the current date and time followed by @code{str} outside
+the upper right hand corner of the plot region.
+(Actually, @code{identification} is a macro, which RELOCATEs to a point
+above the right-hand axis, and half way between the top axis and the
+top of the page, and then writes a string with a PUTLABEL 4.)
+Note that the variable 
+@code{$data_file} is set to the name of the current data file, and
+@code{$date} always expands to the current date and time.

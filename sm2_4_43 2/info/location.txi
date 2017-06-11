@@ -1,0 +1,37 @@
+@node Location, Logical, Local, Commands
+
+@iftex
+@syntax Location.
+@end iftex
+@example
+Syntax: LOCATION GX1 GX2 GY1 GY2
+@end example
+@pindex Location
+@findex plot size, how to change
+
+   Set the physical location of the plot. The plot region is the rectangle
+inside the box drawn by BOX. Vectors and points are
+truncated at the bounds of the plot region. LOCATION specifies (in device
+coordinates) where the plot region is located. LOCATION can be used to make
+an arbitrary size and shape plot, providing that you want it rectangular.
+
+Because all devices have the same coordinate system in SM
+(0-32767), this command is considerably more useful than it used to
+be. The default LOCATION is 3500 31000 3500 31000. You can get at the
+current values of @code{GX1} etc. using the DEFINE | command.
+@findex internal variables, gx1, gx2, gy1, gy2
+
+While you are using WINDOW (@pxref{Window}), LOCATION commands have no effect.
+SM remembers them, however, and obeys the most recent one when you are
+finished with WINDOW.
+
+See the RELOCATE @code{( x y )} command to draw labels outside the plot region,
+and DRAW @code{( x y )} to draw lines there.
+
+If you want to increase the x-location by 500 (say), you can say:
+@example
+        LOCATION $($gx1 + 500) $gx2 $gy1 $gy2
+@end example
+@noindent
+This is sometimes useful to make room for an axis label; if your verbosity
+is 1 or higher you'll be advised of the appropriate displacement.

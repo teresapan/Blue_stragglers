@@ -1,0 +1,152 @@
+@node Verbose, Version, User, Commands
+
+@iftex
+@syntax Verbose.
+@end iftex
+@example
+Syntax: VERBOSE INTEGER
+@end example
+@pindex Verbose
+@findex diagnostics, verbose
+
+Make SM produce output on what it is doing if @code{INTEGER} is > 0.
+Setting VERBOSE to 0 is a way of only listing `important' (non-system) macros,
+and generally getting a little peace and quiet. It has the considerable
+disadvantage that you can think that you are reading data from files, while
+actually something is wrong. For this reason the default value is 1. A value
+of 2 or more is basically useful for debugging. If you get some nondescript
+syntax error and don't know where it is coming from, VERBOSE of 3 or 4 will
+trace your programme, and should help find the problem. The original error
+message will tell you which macro SM thinks it is processing
+when the error occurred but it will be wrong if the macro
+had been fully scanned when the error is detected. In this case it will
+report a parent of the current macro. The reason for this behaviour is
+related to why @code{RETURN} can return from the wrong place
+(@pxref{Command Internals}).
+@findex syntax error, tracking down
+
+If you want to know the current value of VERBOSE you can use the
+SHOW command (actually a macro), or try
+@example
+DEFINE verbose DELETE echo Verbose: $verbose
+@end example
+@noindent
+which is (of course) what SHOW does anyway.
+@findex internal variables, verbose
+
+If verbose is one or more SM will:
+@itemize @bullet
+@item
+Complain about things like division by zero, and logs of negative
+numbers the first time that they occur in a given expression
+@item
+Correct you when you use the wrong format to print a vector
+@item
+Identify the X11 device that you switch to with @code{-dev} [+-]
+@item
+Include all macros in macro listings, even those starting ##
+@item
+Indicate line where arithmetical errors occur
+@item
+List all non-printing key-bindings with LIST EDIT
+@item
+Note more than 40 curve crossings in SHADE
+@item
+Notify user when a @key{control-C} stopped the production of a hardcopy
+@item
+Output a little extra about RESTORE and SAVE
+@item
+Print lines beginning # while reading macro files
+@item
+Provide some context with APROPOS on help files
+@item
+Realise that a WINDOW number is out of range
+@item
+Report which lines are read from a file using READ
+@item
+Remind you that mixing LOCATION with WINDOW confuses people
+@item
+Say something about format and size of IMAGE files
+@item
+Suggest that you change LOCATION to make room for axis labels
+@item
+Tell you what keys to use with the cursor
+@item
+Warn about zero-length vectors
+@item
+Whinge about missing fields with DEFINE var READ # #
+@item
+Write a note when it finds out-of-range values while contouring IMAGE files
+@end itemize
+
+@itemize @bullet
+if @code{INTEGER} is two or greater, then also :
+@item
+Announce when the do, foreach, input, or macro stacks are extended
+@item
+Complain if an environment or SM variable is not defined
+@item
+Echo lines in data files that start with #
+@item
+Include `internal' variables in LIST DEFINE output
+@item
+Inform you when it seeks to a line in a data file
+@item
+List all key-bindings with LIST EDIT
+@item
+Note attempts to `unput' off bottoms of buffers (this is related to the
+implementation of macros and variables)
+@item
+Point out attempts to delete local variables and vectors
+@item
+Print the fraction of axes covered by the tick labels
+@item
+Prompt for variables, even if they are on the macro buffer
+@item
+Protest if you reference an undefined history number
+@item
+Remark if a variable is referenced in a graphcap SY string, but not provided
+@item
+Remind you that only a finite number of KEY commands can be processed
+@item
+Repeat complaint about things like division by zero, and logs of
+negative numbers every time that they occur
+@item
+Report vectors of different lengths in PRINT
+@item
+Say when a vector is used as a scalar.
+@item
+Tell you when vectors are redefined.
+@item
+Write a note when it finds out-of-range values while contouring IMAGE files.
+@end itemize
+
+if @code{INTEGER} is three or greater, then also :
+
+@itemize @bullet
+@item
+List each macro name just prior to expansion.
+@end itemize
+
+if @code{INTEGER} is four or greater, then also :
+@itemize @bullet
+@item
+Print each token as it is recognised along with its text. The number in
+@item
+column 1 is the value of `noexpand', the level of nesting of @{@} loops.
+@item
+Show expansions of variables.
+@end itemize
+
+if @code{INTEGER} is five or greater, then also :
+@itemize @bullet
+@item
+Print the contents of DO, FOREACH, IF, and MACRO command lists.
+@item
+Prompt for DEFINEing variables and the values of multi-word variables.
+@end itemize
+
+
+If you set a negative verbosity, then if the parser was compiled
+with DEBUG defined, you'll get a veritable torrent of debugging
+information. Use another negative VERBOSE command to turn it off again.

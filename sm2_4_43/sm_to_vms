@@ -1,0 +1,79 @@
+#!/bin/csh -f
+#
+# Assumes that the following exist:
+# [.sm]
+# [.sm.callable]
+# [.sm.doc]
+# [.sm.help]
+# [.sm.macro]
+# [.sm.patch] [.sm.patch.uu]
+# [.sm.src] [.sm.src.bison] [.sm.src.devices] [.sm.src.utils]
+# 					[.sm.src.plotsub] [.sm.src.fossil]
+#
+echo Please note that you must create the VMS directory structure
+echo before this will work. You need to make the directories given at the
+echo top of this file
+if($#argv < 1) then
+	echo "Machine to log into?"
+	set machine=$<
+else
+	set machine=$1
+endif
+if($#argv < 2) then
+	echo "Login name to use?"
+	set name=$<
+else
+	set name=$2
+endif
+#echo $machine $name
+ftp -i $machine << __END__
+$name
+cd [.sm]
+mput *
+mdelete *.o sm.
+lcd ./callable
+cd [.callable]
+mput *
+mdelete *.o
+lcd ../patch
+cd [-.patch]
+mput *
+mdelete *.o
+lcd UU
+cd [.uu]
+mput *
+lcd ../../doc
+cd [--.doc]
+mput *
+mdelete *.o
+lcd ../help
+cd [-.help]
+mput *
+lcd ../macro
+cd [-.macro]
+mput *
+lcd ../src
+cd [-.src]
+mput *
+mdelete *.o
+lcd bison
+cd [.bison]
+mput *
+mdelete *.o
+lcd ../devices
+cd [-.devices]
+mput *
+mdelete *.o
+lcd ../fossil
+cd [-.fossil]
+mput *
+lcd ../plotsub
+cd [-.plotsub]
+mput *
+mdelete *.o
+lcd ../utils
+cd [-.utils]
+mput *
+mdelete *.o
+quit
+__END__

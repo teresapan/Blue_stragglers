@@ -1,0 +1,7 @@
+/*
+ * This file is used to keep tabs on patching, and is included in src/main.c
+ * It must be in this directory for patch's "Prereq:" to work properly
+ *
+ * Makers of patch files should ensure that the patch level is updated
+ */
+char version_string_[] = "SM: version @Tag@ (@Date@)";

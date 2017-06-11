@@ -1,0 +1,132 @@
+@node Strings, Surface, Spline, Commands
+
+@iftex
+@syntax Strings.
+@end iftex
+@example
+Strings
+@end example
+@pindex Atof
+@pindex Index
+@pindex Length
+@pindex Sprintf
+@pindex String
+@pindex Strlen
+@pindex Substr
+
+SM supports a number of string operations on vectors and scalars. In the
+following descriptions expr is a expression and vector the name of a vector.
+ 
+@findex string operators
+@findex vectors, string
+@example
+Unary:
+@end example
+
+@findex vectors, converting string to arithmetic
+@table @code
+@item ATOF(expr)
+The value of expr converted to a floating point number. If an element of the
+expression cannot be so interpreted (i.e. it doesn't start with an optional
+sign followed by a digit), the value returned will be 0.
+
+@item CTYPE(STRING)
+Return a vector with the names of all currently defined colours; there
+is also CTYPE() to recover their values (@pxref{Arithmetic}).
+
+@item HELP(name)
+The help string associated with vector @code{name} (set with SET HELP)
+
+@item LENGTH(expr)
+The length (SCREEN units) that a string would have if plotted
+
+@item STRLEN(expr)
+The number of characters in a string
+
+@item STRING(expr)
+Convert a number to a string. You might prefer to use sprintf('%t',expr)
+instead, as it gives you more control.
+
+@item STRING<WORD>
+Convert a string to a string, quoting ''. You don't usually need to
+use this (simple write @code{'my string'}), but if your string already
+contains quotes this doesn't work.
+
+@item ( expr )
+Raise precedence
+
+@end table
+
+@example
+Binary:
+@end example
+
+@table @code
+@item expr + expr
+Add; concatenate element by element
+
+@item expr CONCAT expr
+Concatenate the two vectors
+
+@item INDEX(expr_1,expr_2)
+Return the starting index of expr_2 in expr_1, or -1 if not found.
+
+@item SPRINTF(expr_1,expr_2)
+Format expr_2 using the standard C format string expr_1. The additional
+format %t or %T is identical to %e, but formats the string as a power of
+10 in TeX format.  Note that only one expr may be formatted, but that
+you can say @code{sprintf(expr,expr) + sprint(expr,expr) @dots{}} to
+work around this restriction.
+
+@item vector[expr]
+The elements of vector given by expr.
+
+@end table
+
+@example
+Ternary:
+@end example
+
+@table @code
+@item SUBSTR(expr_1,expr_2,expr_3)
+Return the substring of expr_1 that starts at expr_2 and is expr_3
+characters long. If expr_2 is negative, count from the end of the string;
+if expr_3 is 0 return the rest of the string. For example,
+@code{'Dr. ' + substr('Ralph Monger',-6,0)} would return @code{'Dr. Monger'}.
+
+@item expr1 ? expr2 : expr3
+expr2 if expr1 is true, else expr3
+
+@end table
+@noindent
+Node that this is similar to the corresponding SET command, but
+it needs parentheses if used as an expression.
+
+All indices, as elsewhere in SM, start at 0; e.g.
+@code{substr('Algonquin',0,1)} is @code{A}.
+
+The expression @code{VECTOR[expr]} results in a vector of the same
+dimension as the @code{expr}, with elements taken from @code{VECTOR}
+(i.e. @code{VECTOR[INT(expr_i)]}).
+ 
+You can also use @code{WORD([ expr [ , @dots{} ]])} as part of
+an expression, where @code{WORD} is a macro taking zero or more arguments.
+The arguments are restricted to be either the names of vectors or numbers;
+sorry.
+
+You can use the usual logical operators (@pxref{Logical}) with string-valued
+vectors ; there's a
+discussion in that section of the confusions that people conjure up about
+when they need to use @code{''}.
+
+The HELP(@code{name)} string operator is often useful in labels, for example
+@example
+        SET HELP size "r_e"
+        @dots{}
+        XLABEL $(HELP(size))
+@end example
+
+@findex precedence of string operators
+The precedences are what you'd expect, with @code{+} being higher than
+@code{CONCAT}. The logical operators have even lower precedence than
+@code{CONCAT}.

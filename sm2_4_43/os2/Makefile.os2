@@ -1,0 +1,42 @@
+###################################################################
+#								  #
+#		    SSSS       M       M			  #
+#		   S    S      MM     MM			  #
+#		   S	       M M   M M			  #
+#		    SSSS       M  M M  M			  #
+#		        S      M   M   M			  #
+#		   S    S      M       M			  #
+#		    SSSS       M       M			  #
+#								  #
+#								  #
+###################################################################
+#
+# This makefile makes the OS/2 Presentation Manager device, sm_pmdev.exe
+# The final .exe file must reside in a directory included in the OS/2 PATH
+#
+# Which compiler to use.
+#
+# OS/2 use Borland's C++ v1.5 compiler
+CC = bcc
+#
+# cc flags
+#
+DEBUG = -v -N
+CFLAGS = -sm
+#
+..\src\sm_pmdev.exe : sm_pmdev.c sm_pmdev.rc sm_pmdev.res sm_pmdev.ico
+	bcc $(CFLAGS) $(DEBUG) sm_pmdev.c -esm_pmdev
+	rc sm_pmdev.rc sm_pmdev.exe
+	copy sm_pmdev.exe ..\src\sm_pmdev.exe
+	del sm_pmdev.exe
+#
+#
+# clean out all object code and junk files
+#
+empty : 
+	- del ..\src\sm_pmdev.exe	
+	
+clean :
+	- del *.obj
+
+sm_pmdev : ..\src\sm_pmdev.exe

@@ -1,0 +1,40 @@
+@node Connect, Contour, Chdir, Commands
+
+@iftex
+@syntax Connect.
+@end iftex
+@example
+Syntax: CONNECT WORD1 WORD2 [ IF (expr) ]
+@end example
+@pindex Connect
+
+   CONNECT draws line segments connecting the points in vectors @code{WORD1} and
+@code{WORD2}. If the IF clause is present, only connect those points for which 
+@code{expr}
+(see the section on vector arithmetic) is non-zero. Only contiguous
+points in the input vectors will be connected, resulting in a number of
+line-segments. If you don't want this behaviour, say something like
+@example
+set l = (z==1) ? 1 : 0  set x=xx if(l) set yy=y if(l) connect xx yy
+@end example
+@noindent
+
+In fact, either or both of the @code{WORD}s may be replaced by
+`parenthesised expressions', i.e. expressions in parentheses. For example,
+@example
+CONNECT x (2*y)
+@end example
+@noindent
+plots x against 2y.
+
+If @code{WORD1} and @code{WORD2} have different dimensions CONNECT will
+ignore the excess points in the longer vector. If you want to plot a
+constant value you'll have to explicitly promote it, for example
+@example
+CONNECT x (1+0*x)
+@end example
+@noindent
+which makes a rather boring plot.
+
+To draw a line in a label you can either use CONNECT or DRAW, or use the
+@TeX{}-macro @code{\line} to directly insert your line.

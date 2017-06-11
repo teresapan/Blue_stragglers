@@ -1,0 +1,63 @@
+@node Logical, Ltype, Location, Commands
+
+@iftex
+@syntax Logical.
+@end iftex
+@example
+Syntax: Logical Operators
+@end example
+@pindex Logical operators
+
+The following logical operators are allowed on vectors and scalars in
+SM, where non-zero means true:
+
+
+@example
+Unary:
+
+!expr           Logical Complement    
+@end example
+
+@example
+Binary:
+
+expr == expr    Equal to             expr != expr    Not equal
+expr < expr     Less than            expr <= expr    Less than or equal
+expr > expr     Greater than         expr >= expr    Greater than or equal
+expr && expr    Logical and          expr || expr    Logical or
+@end example
+
+Only @code{!}, @code{==}, and @code{!=} are allowed for string valued vectors.
+All arithmetic vectors test unequal to all string-valued vectors. Invalid
+floating point values (those which print with a @code{*}) always compare
+non-equal, even to themselves (this is the same behaviour as IEEE's @code{NaN}s).
+@findex NaN
+@findex equality
+
+@findex string vectors, if tests
+For string vectors, there are three cases to consider:
+@code{vstr1 == vstr2} generates a vector of the same length as
+@code{vstr1} (with must be the
+same length as @code{vstr2}) by comparing the two vectors element by element;
+@code{'str1' == vstr}
+generates a vector of the same length as @code{vstr}
+by comparing each element of the vector @code{vstr} to the string @code{str1};
+and
+@code{'str1' == 'str2'}
+which returns a scalar by comparing the strings @code{str1} and @code{str2}
+(so it's false in this example).
+
+@findex precedence, logical operators
+As in C, @code{==} has a higher precedence than @code{&&}, which in turn has
+higher precedence than @code{||}.
+As noted in @xref{If}, @code{&&} and @code{||} evaluate both the left- and
+right- hand expressions.  If this is a problem, you can use @code{AND} and
+@code{OR} instead.
+
+Note that there is also a ternary operator, @code{(expr1) ? expr2 : expr3}
+which has the value @code{expr2} if @code{expr1} is true, and @code{expr3}
+if it is false.
+
+See `arithmetic' for the arithmetical operators @xref{Arithmetic}.
+You can test to see if a variable is defined by looking at the value
+of @code{$?var} (@pxref{Define}).

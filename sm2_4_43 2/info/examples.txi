@@ -1,0 +1,281 @@
+@chapter More Examples of Macros
+@findex macros, examples
+@findex examples, macros
+
+In all these examples, we'll use the @code{del1} macro discussed
+above to keep commands off the history list.
+Let's start with a Fourier series, to demonstrate SM's ability
+to manipulate vectors. All keywords are capitalised for clarity. 
+Start SM, choose a plotting device (with
+the @code{dev} macro), and erase all the commands on the history (or
+playback) buffer with @code{DELETE 0 10000}. Then type the following
+commands:
+@example
+SET px=-PI/10,2*PI,PI/200
+SET y=SIN(px) + SIN(3*px)/3 + SIN(5*px)/5 + SIN(7*px)/7
+SET y=(y>0)?y:0
+LIMITS -1 7 y
+BOX
+CONNECT px y
+@end example
+@noindent
+The vector @code{px} could just as well have been read from a file. You 
+should now have a part of a square-wave, truncated at 0.
+
+Now consider a simpler way of doing the same thing. For the present, clear
+the history buffer again (@code{DELETE 0 10000}), and type:
+@example
+SET px=-PI/10,2*PI,PI/200
+SET y=SIN(px)
+DO i=1,3 @{
+   SET val = 2*$i + 1
+   SET y = y + SIN(val*px)/val
+@}
+DELETE val
+LIMITS -1 7 y
+BOX
+CONNECT px y
+@end example
+@noindent
+Here we use a vector @code{val} to save a value, an equivalent (but
+slower) loop using SM variables would be 
+@example
+DO i=1,3 @{
+   DEFINE val (2*$i + 1)
+   DEFINE y = y + SIN($val*px)/$val
+@}
+DEFINE val DELETE
+@end example
+
+That is all very well if you only ever wanted to sum the first four terms of the
+series. Fortunately there is a way to change this, using the macro editor. First
+define a macro consisting of all the commands on the history list:
+@example
+del1 MACRO all 0 10000
+@end example
+@noindent
+will define the macro @code{all} to be history lines 0-10000.
+(You need the @code{del1} to avoid having the @code{MACRO all 0 10000} in
+your macro). 
+Then you can edit it using
+@example
+del1 MACRO EDIT all
+@end example
+@noindent
+when you have made the desired changes (e.g. changing @code{DO i=1,3}
+to @code{DO i=1,20}) use @key{control-X} to leave the editor and return to the
+command editor. Now you could type @code{all} to run your new macro,
+or put it back onto the history list. To do the latter, delete the 
+commands now on the history list (the now-familiar @code{DELETE 0 10000}),
+then @code{del1 WRITE HISTORY all} to put the macro @code{all} onto the
+list. Now the
+@code{playback} command will run all those commands, and produce a better
+squarewave. (As discussed in a moment, @code{playback} is a macro so type it
+in lowercase, unless you have defined your own @code{PLAYBACK} macro.)
+
+This ability to edit the history buffer is convenient, and there is a macro
+provided called @code{edit_hist} which goes through exactly the steps that we
+took you through. The trick of including a @code{del1} in macros is
+pretty common, for example @code{h} is defined as 
+@code{del1 HELP} so that it won't appear on the history list.
+The macro @code{playback} is rather similar to @code{edit_hist}, but instead
+of editing and then writing @code{all}, it executes it. We discussed
+the possibility of just playing back a limited number of lines while
+talking about @code{hcopy}, just say @code{playback n1 n2}.
+
+Now that you have a set of commands which produce a Fourier plot, it
+would be nice to define a macro to make plots, taking the number of
+terms as an argument, and then free the history buffer for other things.
+After a playback, the macro @code{all} is defined, so let's change its
+name to @code{square}. There is a macro @code{ed} defined more-or-less as
+@code{del1 MACRO EDIT}, so type @code{ed all} to enter the macro editor.
+Use
+@tex
+$\uparrow$
+@end tex
+@ifinfo
+uparrow
+@end ifinfo
+or @key{control-P} to get to line 0 and
+change the number of arguments from 0 to 1, and the name of the macro
+from @code{all} to @code{square} (the space between the name and the : is
+required.) Then go to the @code{DO i=1,20} line, and change @code{20} to
+@code{$1}. Exit with @key{control-X}, clear the screen with @code{era} and
+type @code{square 10}. Now how do you 
+save your nice macro? @code{WRITE MACRO square filename} will write it
+to file @file{filename}, and next time you run SM
+@code{MACRO READ filename}
+will define it. In fact there is a command @code{SAVE} to save everything
+which can be a mindless way of proceeding.
+A macro similar to this Fourier macro called @code{square}
+is in the file @code{demos} in the default macro directory (and was used to 
+produce the top left box of the cover to this manual). To try it yourself, type
+something like @code{load demos square 20}. (@code{20} is the number of
+terms to sum.)
+
+If your wondering why @code{ed} is only `more-or-less' defined as @code{del1 MACRO EDIT}, it's because the real @code{ed} checks to see if you
+have provided a macro name, and if you haven't it edits the same macro
+as last time.
+
+But enough of macros which fiddle with the history buffer. Here are four
+sets of macros which do useful things, and may give some idea of the power
+available.
+First a macro to use the values of a third vector to mark points, then one
+to do least-squares fits to data points, then a macro to join
+pairs of points, and finally some macros to handle histograms and Gaussians.
+These macros are given in the format that SM would
+write them to disk (ready for a @code{MACRO READ}), with the name, then the
+number of arguments if greater than 0, then the body of the macro.
+
+First the points.
+@example
+alpha_poi 3   # alpha_poi x y z. Like poi x y, with z as labels for points
+              DO i=0,DIMEN($1)-1 @{
+                 DEFINE _x ($1[$i]) DEFINE _y ($2[$i])
+                 RELOCATE $_x $_y
+                 DEFINE _z ($3[$i])
+                 PUTLABEL 5 $_z
+              @}
+              FOREACH v (_x _y _z) @{ DEFINE $v DELETE @}
+@end example
+@noindent
+Here we use the temporary variables @code{_x _y _z} to get around
+restrictions on expressions in @code{RELOCATE} commands.
+Note the @code{DO} loop running from @code{0} to @code{DIMEN($1)-1}, produced
+by array indices starting at 0 not 1.
+If you wanted to use character strings as labels, this could be done by
+using the @code{DEFINE READ} command, but this would be a good deal slower as
+SM would have to rescan the file for each data-point. The top right
+box of this manual's cover was made using this macro.
+The use of @code{alpha_poi} (and also the macro file called @code{ascii})
+has been superseded by the introduction of string-valued vectors into
+SM. Nowadays you'd simple read the column that you want to
+label the point with as a string (e.g. @code{READ lab 3.s}), set the
+point type to that string (e.g. @code{PTYPE lab}), and plot the points as usual
+(e.g. @code{POINTS x y}).
+
+The least-squares macro makes heavy use of the @code{SUM} operator.
+It could be used to find the dimension of a
+vector too, but only clumsily, and @code{DIMEN} is provided anyway. The macro
+is:
+@example
+lsq 4         # Do a least squares fit to a set of vectors
+              # Syntax: lsq x y x2 y2   Fit line y2=$a*x2+$b to x y
+              DEFINE _n (DIMEN($1))           # number of points
+              DEFINE _sx (SUM($1))            # Sigma x
+              DEFINE _sy (SUM($2))            # Sigma y
+              DEFINE _sxy (SUM($1*$2))        # Sigma xy
+              DEFINE _sxx (SUM($1*$1))        # Sigma xx
+              DEFINE a (($_n*$_sxy - $_sx*$_sy)/($_n*$_sxx - $_sx*$_sx))
+              DEFINE b (($_sy - $a*$_sx)/$_n)
+              SET $4=$a*$3+$b
+              FOREACH v ( _n _sx _sy _sxy _sxx ) @{DEFINE $v DELETE @}
+@end example
+@noindent
+This does a linear fit, leaving the coefficients in @code{$a} and @code{$b}. It could 
+be easily generalised to deal with weights, fits constrained to pass
+through the origin, quadratics...
+
+Our third example connects pairs of points. This was written to deal with
+a set of data points before and after a certain correction had been applied.
+@example
+pairs 4       # pairs x1 y1 x2 y2. Connect (x1,y1) to (x2,y2)
+              DO i=0,DIMEN($1)-1 @{
+                 DEFINE _x ($1[$i]) DEFINE _y ($2[$i])
+                 RELOCATE $_x $_y
+                 DEFINE _x ($3[$i]) DEFINE _y ($4[$i])
+                 DRAW $_x $_y
+              @}
+              FOREACH v ( _x _y ) @{ DEFINE $v DELETE @}
+@end example
+@noindent
+After the introduction of vectors for @code{ANGLE} and @code{EXPAND}
+(in version 2.1) this macro can be rewritten to be much faster:
+@example
+pairs    4    # pairs x1 y1 x2 y2. connect (x1,y1) to (x2,y2)
+              DEFINE 6 @{ ptype angle expand aspect @}
+              FOREACH 5 @{ $!!6 @} @{ DEFINE $5 | @}
+              FOREACH 5 @{fx1 fx2 fy1 fy2 gx1 gx2 gy1 gy2@} @{
+                 DEFINE $5 DELETE
+              @}
+              ASPECT 1
+              SET _dx$0=($3 - $1)*($gx2 - $gx1)/($fx2 - $fx1)
+              SET _dy$0=($4 - $2)*($gy2 - $gy1)/($fy2 - $fy1)
+              PTYPE 2 0
+              SET _a$0=(_dx$0 == 0 ? (_dy$0 > 0 ? PI/2 : -PI/2) : \
+                  (_dy$0 > 0 ? ATAN(_dy$0/_dx$0) : ATAN(_dy$0/_dx$0) + PI))
+              ANGLE 180/pi*_a$0
+              EXPAND SQRT(1e-5 + _dx$0**2 + _dy$0**2)/(2*128)
+              POINTS (($1 + $3)/2) (($2 + $4)/2)
+              FOREACH 5 @{ $!!6 @} @{ $5 $$5 DEFINE $5 DELETE @}
+              FOREACH 5 ( _a _dx _dy ) @{ DELETE $5$0 @}
+@end example
+@noindent
+Note how @code{DEFINE name |} is used to save things like the angle
+and expansion, while @code{DEFINE name DELETE} is used to ensure that the
+up-to-date versions of things like @code{fx1} are used (i.e. that they
+@emph{haven't} been DEFINEd with a @code{!}).
+The name of the macro (@code{$0}) is used to
+make unique vector names, or at least names like @code{_dxpairs} that
+are very unlikely to be in use.
+
+SM allows you to plot a pair of vectors as
+a histogram, but what if you have only got the raw data points, not yet
+binned together? Fortunately, SM can do this
+binning for you. Consider the following macro:
+@example
+get_hist 6    # get_hist input output-x output-y base top width
+              # given $1, get a histogram in $3, with the centres of the
+              # bins in $2. Bins go from $4 to $5, with width $6.
+              SET $2 = $4+$6/2,$5+$6/2,$6
+              SET HELP $2 X-vector for $3
+              SET $3=0*$2 SET HELP $3 Histogram from $1, base $4 width $5
+              DO i=0,DIMEN($1)-1 @{
+                 DEFINE j ( ($1[$i] - $4)/$6 )
+                 SET $3[$j] = $3[$j] + 1
+              @}
+              DEFINE j DELETE
+@end example
+@noindent
+Since this was written, a new feature was added to SM, the
+@findex histogram, binned from vector
+expression @code{HISTOGRAM(x:y)}, to make histograms. The macro we discussed
+above can now be written much more efficiently as:
+@example
+get_hist 6    # get_hist input output-x output-y base top width
+              # given $1, get a histogram in $3, with the centres of the
+              # bins in $2. Bins go from $4 to $5, with width $6.
+              SET $2 = $4+$6/2,$5+$6/2,$6
+              SET HELP $2 X-vector for $3
+              SET $3=HISTOGRAM($1:$3)
+              SET HELP $3 Histogram from $1, base $4 width $5
+@end example
+
+Suppose that your data is in vector x, for want of a better name, and
+it has values between 0 and 20. Then the command
+@example
+get_hist x xx yy 0 20 1
+@end example
+@noindent
+will produce a histogram in @code{yy}, bin centres in @code{xx}, running
+from 0 to 20 with bins 1 unit wide. So you could plot it with
+@code{lim xx yy box hi xx yy }, and maybe it looks like a Gaussian. So what
+is the mean and standard deviation? The command
+@example
+stats x mean sig kurt echo $mean $sig $kurt
+@end example
+@noindent
+will answer that, and find the kurtosis too. (Macro @code{stats}
+consists of lines
+such as @code{define $2 ( sum($1)/dimen($1) ) }). Then we could use
+the macro @code{gauss} to plot the corresponding Gaussian,
+@example
+set z=0,20,.1 set gg=gauss(z) set gg=gg*dimen(x) con z gg
+@end example
+@noindent
+The bottom left box of the cover was made this way. What if you don't
+like the way that the histogram looks? Try the macro @code{barhist}.
+Now, if you wanted to plot a lognormal, you'd have to write your own
+macro, and you could use @code{SORT} to find medians and add another macro
+to @code{utils}, followed by one to find Wilcoxon statistics...
+(Since this was written a @code{wilcoxon} macro was donated to @code{stats}).

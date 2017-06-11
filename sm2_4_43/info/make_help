@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# Prepare the help files from the manual
+#
+trap "if [ -f info.out ]; then rm info.out; fi" 0 3
+#
+help_dir=../help
+while true; do
+	case $1 in
+	  -d)
+		shift
+		if [ "$1" = "" ]; then
+			echo You must provide a directory with -d
+			exit 1
+		else
+			help_dir=$1
+		fi;;
+	  -*)
+		echo Unknown option: $1;;
+	  *)
+		break;;
+	esac
+	shift
+done
+#
+# Prepare most help files straight from the manual
+#
+for f in \
+    angle apropos arithmetic aspect axis box chdir connect \
+    contour ctype cursor data define delete device do dot \
+    draw edit erase errorbar expand fft foreach format grid \
+    help histogram history if image key label levels limits lines \
+    list location logical ltype lweight macro minmax notation \
+    overload page points print prompt ptype putlabel quit \
+    range read relocate restore return save set shade sort spline \
+    sunview termtype ticksize user verbose version whatis \
+    window write xwindows xlabel ylabel ; do
+	info -o info.out -n '(sm)' -n $f
+	sed -e '1,2d' info.out > $help_dir/$f
+done
+#
+# Now some special cases
+#
+cat > $help_dir/variable << END
+   See DEFINE for how to define and use variables.
+END
+

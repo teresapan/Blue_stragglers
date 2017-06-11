@@ -1,0 +1,45 @@
+@node Termtype, Ticksize, Table, Commands
+
+@iftex
+@syntax Termtype.
+@end iftex
+@example
+Syntax: TERMTYPE word [ INTEGER ]
+@end example
+@pindex Termtype
+@findex edit, termtype
+@findex termcap, used by termtype
+@findex terminals, setting terminal type
+
+Set the terminal type to be @code{WORD}. This has nothing to do with
+graphics, but is to do with the history and macro editors.  @code{WORD}
+is case-sensitive.  With two exceptions, the properties of the terminal
+will be read from the termcap file (@pxref{Termcap}). If @code{WORD}
+is @code{dumb} SM tries to support editing on a (very) stupid terminal.
+If this isn't what you want, for example you are running SM from within
+emacs @code{TERMTYPE none} is equivalent to starting SM with the @code{-s}
+flag and entirely disables input line editing (although commands
+are still remembered so commands like @code{playback} and @code{hcopy}
+will still work). You can turn editing back on by issuing a @code{TERMTYPE}
+command with a valid terminal name.
+
+For most purposes you don't even need to use
+this command, as when SM starts up it reads the value of the
+environment variable @code{TERM} (under Unix) or logical variable (under VMS)
+it effectively issues a TERMTYPE command with its value as
+argument. If you have a @code{term} entry in your @file{.sm} file
+this takes precedence over any @code{TERM} variable. For example, a
+@code{term} entry of @code{selanar -21} is equivalent to the command
+@code{TERMTYPE selanar -21}.
+
+You also should not have to use the optional @code{INTEGER} argument,
+which specifies the number of lines that will appear at a time when
+LISTing things, as this information
+is usually derived from termcap. If you are using a window system,
+then termcap may be wrong and this argument may be useful. 
+Another exception occurs when you wish to
+disable cursor motion to avoid having your graphs scrolling off the
+screen. If this concerns you @pxref{Termcap}.
+@findex edit, size of screen
+@findex edit, cursor being weird
+@findex weird, alpha cursor being

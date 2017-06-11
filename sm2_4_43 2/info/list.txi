@@ -1,0 +1,65 @@
+@node List, Local, Lines, Commands
+
+@iftex
+@syntax List.
+@end iftex
+@example
+Syntax: LIST @r{DEFINE} [ begin end ]
+        LIST @r{DEFINE} |
+        LIST @r{DEFINE IMAGE}
+        LIST @r{DEVICE} [ pattern ]
+        LIST @r{EDIT}
+        LIST @r{MACRO} [ begin end ]
+        LIST @r{SET}
+        LIST @r{TABLE}
+@end example
+@pindex Listing
+@findex variables, listing
+@findex macros, listing
+
+list all the currently defined variables (DEFINE) or macros (MACRO),
+optionally only within the range @code{begin - end }. If VERBOSE is 0
+macros beginning ## won't be listed. You can list the internal variables
+(i.e. those such as @code{$fx1} that track SM internal variables) with
+LIST DEFINE |, or by setting VERBOSE to be two or more.
+@findex internal variables, listing
+
+LIST DEFINE IMAGE lists all IMAGE variables (as read from files with
+IMAGE or TABLE, or defined with IMAGE DEFINE name val).  FITS keywords
+are omitted if verbose is 0. You can use DEFINE name IMAGE to convert
+these to regular SM variables.  The variables listed when verbose
+is 0 are those written to the headers of files written using the
+WRITE IMAGE or WRITE TABLE commands.
+@findex image variables, listing
+
+LIST EDIT will list all the keybindings. If VERBOSE is 0 only the keys
+that don't generate themselves are listed (i.e. because A is bound
+to A it isn't listed). If VERBOSE is 1, in addition all non-printing keys
+are listed, and if VERBOSE is 2 or greater all keys are listed. Both the
+EDIT and the KEY bindings are listed.
+
+LIST DEVICE will list all the devices known to SM. The devices are
+listed with each device on an (indented) line, first the primary name,
+then a list of aliases in parentheses, then a full name. If @code{pattern}
+is provided only those lines that match the given pattern will be printed,
+for details on SM's regular expressions @xref{Apropos}. An example would
+be
+@example
+LIST DEVICE ^post
+@end example
+@noindent
+to list all devices whose principle name begins `post'.
+
+LIST SET lists all currently defined vectors. For each vector the name,
+the dimension and the @code{HELP} field are given. See @code{SET} for how
+to set the latter.
+
+LIST TABLE lists all columns available in the current TABLE; this currently
+only works for FITS binary tables.
+
+For a list of the history buffer use HISTORY (macro @code{lis}), to list a
+macro use HELP (macro @code{h}). It can be useful to overload `list' so
+that it doesn't appear on the history list, and so that `list' by
+itself corresponds to the command HISTORY (this is done for you if you
+use @code{set_overload} or put @code{overload} in your @file{.sm}
+file).

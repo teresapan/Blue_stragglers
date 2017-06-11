@@ -1,0 +1,136 @@
+#!/bin/sh
+#
+# Transfer SM to two floppies (three, with help and info)
+#
+rm -f $HOME/.mcwd
+mcd a:/
+if [ ! -f AA_Version.h ]; then
+	echo "please run this command in the top level SM directory" >&2
+	exit 1
+fi
+
+for volume in 1 2 3; do
+
+	echo "Volume $volume; please insert a floppy and hit"
+	echo "     <CR>  to write floppy,"
+	echo "     e<CR> to erase disk and then write,"
+	echo "     q<CR> to quit,"
+	echo "or   s<CR> to skip this volume"
+	echo ""
+	read ans
+	case $ans in
+	  e*)
+		mkdfs -h;;
+	  q*)
+		exit 0;;
+	  s*)
+		continue;;
+	esac
+
+	mmd a:/sm
+	mmd a:/sm/dos
+	mmd a:/sm/src
+	mmd a:/sm/src/devices
+	mmd a:/sm/src/plotsub
+	mmd a:/sm/src/utils
+	mmd a:/sm/help
+	mmd a:/sm/info
+	mmd a:/sm/macro
+
+	echo "				sm"
+	mcd a:/sm
+	case $volume in
+	  1)
+		mcopy -t AA_Version.h Makefile Makefile.dos sm.rc filecap \
+			graphcap maps.dat rasterise.c read_fonts.c \
+			sm.ico termcap a:
+		;;
+	  2)
+		mcopy -t README abbrev compile_g.c config dmake_to_make dump \
+			add_copyright font_index get_grammar.c make_cvs_patch \
+			make_patch make_tags old_font_index rename_sm \
+			set_opts sm.el sm.install sm.man \
+			sm.pps tex.def vgdefs a:
+		mcopy -t hershey_oc.dat a:
+		;;
+	esac
+
+	echo "				sm/dos"
+	cd dos
+	mcd a:/sm/dos
+	case $volume in
+	  1)
+		mcopy -t *.h a:
+		mcopy *.bgi *.dll a:
+		;;
+	esac
+
+	echo "				sm/src"
+	cd ../src
+	mcd a:/sm/src
+	case $volume in
+	  1)
+		mcopy -t control.y *.c *.h Makefile Makefile.dos mv_vars a:
+		;;
+	esac
+	
+	echo "				sm/src/devices"
+	cd devices
+	mcd a:/sm/src/devices
+	case $volume in
+	  1)
+		mcopy -t *.c *.h Makefile Makefile.dos cacheg.dat a:
+		;;
+	esac
+	
+	echo "				sm/src/plotsub"
+	cd ../plotsub
+	mcd a:/sm/src/plotsub
+	case $volume in
+	  1)
+		mcopy -t *.c *.h Makefile Makefile.dos a:
+		;;
+	esac
+	
+	echo "				sm/src/utils"
+	cd ../utils
+	mcd a:/sm/src/utils
+	case $volume in
+	  1)
+		mcopy -t *.c Makefile Makefile.dos a:
+		;;
+	esac
+	
+	echo "				sm/macro"
+	cd ../../macro
+	mcd a:/sm/macro
+	case $volume in
+	  2)
+		mcopy -t *[!~] a:
+		;;
+	esac
+
+	echo "				sm/help"
+	cd ../help
+	mcd a:/sm/help
+	case $volume in
+	  3)
+		mcopy -t *[!~] a:
+		;;
+	esac
+
+	echo "				sm/info"
+	cd ../info
+	mcd a:/sm/info
+	case $volume in
+	  3)
+		mcopy -t README Makefile *.txi *.tex texindex.c make_help a:
+		;;
+	esac
+
+	mcd a:/
+	cd ..
+
+	eject
+done
+exit 0

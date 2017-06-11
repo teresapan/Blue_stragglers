@@ -1,0 +1,16 @@
+filecap		c:/sm/filecap
+fonts		c:/sm/fonts.bin
+graphcap	c:/sm/graphcap
+help		c:/sm/help/
+history		80
+history_file	sm.hf
+macro		c:/sm/macro/
+macro2		./
+printer		postscript
+temp_dir	c:/nowhere
+termcap		c:/sm/termcap
+term		pchard
+name		larry
+device		bgi
+stdmode		vga
+bgipath		c:/borlandc/bgi

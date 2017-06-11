@@ -1,0 +1,14 @@
+@node Page, Points, Overload, Commands
+
+@iftex
+@syntax Page.
+@end iftex
+@example
+Syntax: PAGE 
+@end example
+@pindex Page
+   PAGE starts a new page for a hardcopy plot (n.b. the device driver for
+raster plots is unable to support multiple page plots).
+
+On window systems (X11, SunView) page will raise the window and refresh
+it if necessary.

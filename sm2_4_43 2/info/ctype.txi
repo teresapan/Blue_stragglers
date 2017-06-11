@@ -1,0 +1,120 @@
+@node Ctype, Cursor, Contour , Commands
+
+@iftex
+@syntax Ctype.
+@end iftex
+@example
+Syntax: CTYPE WORD
+        CTYPE INTEGER
+        CTYPE = expr
+@end example
+@pindex Ctype
+@findex colour, used in plotting
+@findex color, used in plotting
+@findex colour, see also ctype
+@findex color, see also ctype
+@findex line drawing, colours
+
+With @code{WORD}, set the line colour to be @code{WORD}, if your
+display device supports
+coloured lines, where @code{WORD} must be one of @code{default}, @code{white},
+@code{black}, @code{red}, @code{green}, @code{blue}, @code{cyan}, @code{magenta},
+or @code{yellow}. The colours are those composed of three, zero, one, or two
+of the primary colours red, green, and blue. When a device is opened
+it sets @code{default} to some device specific value (e.g. white for
+xwindows, black for sunwindows).
+
+Initially, CTYPE @code{INTEGER} is another way of selecting the same colours
+as are available with CTYPE @code{WORD}, where CTYPE 1
+is the equivalent of the
+first colour listed above, or white (so @code{default} is 0).
+However, the CTYPE = @code{expr}
+command redefines the available colours to be the elements of the array
+given by expr. If it is arithmetic, each element of is interpreted as
+RED + 256*GREEN + 256^2*BLUE for the given colour, where 0 is off,
+and 255 corresponds to full intensity.
+If the @code{expr} is string-valued it specifies the names to be
+used for the colours that you have just defined. Any connection
+between the names and colours is, of course, up to you.
+@findex internal variables, ctype
+You can get the current value of CTYPE with @code{DEFINE ctype |},
+and vectors of the current ctypes and their names as @code{CTYPE()} and
+@code{CTYPE(STRING)}.
+@findex ctype, getting values and names
+
+So another way to get
+white lines would be to say:
+@example
+CTYPE = @{ 0 255 0 @} + 256*(@{ 0 255 255 @} + 256*@{0 255 0 @})
+CTYPE 1
+@end example
+@noindent
+while
+@example
+CTYPE 2
+@end example
+@noindent
+would give green lines.
+@example
+CTYPE =@{ black white green @}
+@end example
+@noindent
+would make your colour names correspond to reality again. You can use any
+names you like, you are certainly not restricted to the initial set.
+
+You can reset the colours to their default (i.e. correct) values using the macro
+@code{reset_ctype}.
+
+If you want to add a new colour you can say:
+@example
+CTYPE = CTYPE() concat 200 + 256*(100 + 256*100)
+CTYPE = CTYPE(STRING) concat 'pink'
+@end example
+@noindent
+and delete one with
+@example
+foreach f @{"" string@} @{
+   set ct=ctype($f) if(ctype(string) != 'pink') ctype = ct
+@}
+@end example
+@noindent
+(see also macros @code{add_ctype} and @code{del_ctype}).
+
+It's also possible to add a single private colour using the syntax
+@example
+ctype \#RRGGBB
+@end example
+@noindent
+(e.g. @code{#ff00ff}), which may be referred to @code{ctype $(dimen(ctype()))}
+(i.e. one index past the officially supported colours).  This was implemented
+to allow the X server to talk about white as @code{#000000}, but might prove
+useful to you, too.
+
+Many devices (e.g. @code{sunview}) require you to specify
+a number of colours that is a power of 2, so asking for 70 colours
+will use up 128 slots. It is probably a good idea to
+use as few colours as possible, as they are scarce resources on most displays.
+You should also be aware that the display may use some of `your' slots
+for the background, so specifying 63 colours on (e.g.) a sun actually
+requires 64 (and asking for 64 will use up 128). If you specify more colours
+than are physically available, or more than the device driver thinks
+that you deserve, SM will interpolate your values of CTYPE for you.
+
+If you are using X11 (@pxref{XWindows}), you will probably need to use the
+@code{-cmap} flag when openinig your device if you want to allocate many
+private colours.
+
+The default colour is specified
+in the device drivers, or in the @code{DC} (Default Colour) graphcap
+capability, and is set whenever a device is opened, so don't try to
+modify it with a @code{CTYPE = expr} command. You can, however, override 
+the default colour with a @code{foreground} entry in your @file{.sm} file; 
+it should be the name of a colour (as listed above). You may also be able to
+specify a background colour (as @code{background}). This is either a colour
+name or a set of three integers in the range 0-255 specifying
+the red, green, and blue values. We allow you this chance to specify arbitrary
+colours because it's your only chance to affect the background, and you can't
+use a CTYPE = command to compose your own palette. On some devices
+the name of the background colour may be chosen from a wider selection;
+for example if you are using Xwindows you may use any name from the
+colour database.

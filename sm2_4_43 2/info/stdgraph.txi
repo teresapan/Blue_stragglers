@@ -1,0 +1,1135 @@
+@node Graphcap, Calling SM, Command Internals, Appendices
+@appendixsec The Stdgraph Graphics Kernel
+
+SM can use a single set of subroutine calls to plot on almost any
+terminal, and on many printers. The routines that it uses, called stdgraph,
+were originally
+taken from the IRAF GIO package written at
+Kitt Peak by Doug Tody@footnote{Graphics I/O Design, Doug Tody, March 1985.
+NOAO (Kitt Peak)}
+and converted to C and partially re-written to be integrated into SM.
+Despite our extensive rewrite, these routines should probably still be
+considered to be in the public domain.
+
+@menu
+* Graphcap File::	The Graphcap File
+* Binary Encoder::	Stdgraph's Binary Encoder
+* Graphcap Examples::	Examples of Graphcap Entries
+* Graphcap Cursors::	Using Cursors with Graphcap
+* Graphcap Colours::	Using Colours with Graphcap
+* Modified Entry::	How to Modify a Graphcap Entry
+* New Entry::		Writing a New Graphcap Entry
+* Raster::		Support for Raster Devices
+* Compiling::		Compiling Graphcap
+* Graphcap Index::	Index to Graphcap Capabilities
+@end menu
+
+@node Graphcap File, Binary Encoder, , Graphcap
+@appendixsec The Graphcap File
+
+Stdgraph uses a file called a graphcap file to specify the properties of
+terminals, in a way that is similar to the termcap facility of Unix. You
+don't have to know anything about termcap to read this section; you don't
+have to read this section unless you want to change the graphcap file
+to add a new device, to fix a bug, or to change the way that SM treats
+your plotting device. The name of the graphcap file is given by the variable
+@code{graphcap} in the environment file.
+
+A list of files to be searched
+in order may be given instead of a single graphcap file (up to a
+current maximum of three). The usual way to accomplish this is to
+add an entry
+@example
++graphcap          /u/rhl/sm/graphcap
+@end example
+@noindent
+above any other graphcap entries in your @file{.sm} file, which instructs
+SM to put @file{/u/rhl/sm/graphcap} first in the list of files, followed by
+any others that might appear, either in your file or in some other that
+the system provides (ask the person who installed SM where the default
+@file{.sm} file is; usually something like @file{/usr/local/lib/.sm}).
+@findex graphcap, description
+@findex graphcap, search path
+
+
+A graphcap file is a way of describing a terminal in a concise way, so a 
+programme can discover which idiosyncrasies a terminal has without having
+to be recompiled. A graphcap file consists of a number of entries, one for
+each device supported, and to add a new terminal all that one has to do is
+to add another entry.
+It is also possible to define variables in graphcap files, which are used
+in @code{SY} entries.
+You can compile selected entries in the graphcap file, so as to 
+improve access time for popular terminals. If this has been done, changing
+the graphcap file for one of these terminals will have no effect until
+it is recompiled, @pxref{Compiling} for details.
+
+For a list of all the capabilities that SM uses see the index to
+graphcap at the end of this appendix.
+
+Some devices are not supported through stdgraph (graphics drawn to a
+SunView window would be an example), but they still appear in graphcap
+with a special entry (@code{DV}) giving the name of the appropriate hard-coded
+device driver.
+
+Each entry consists of a name for the device, followed by a list of 
+aliases, followed by a list of fields, separated by colons. A \ may be used
+to continue an entry onto the next line, and lines starting with a
+@code{#} are comments (comment lines are permitted both between and
+within entries).
+As a rather complex example,
+the graphcap entry for a Tektronix 4012 reads:
+@example
+tek4010|tek4012|TEK4010|TEK4012|Tektronix 4010/2:\
+        :ch#.0294:cw#.0125:co#80:li#35:xr#1024:yr#800:\
+        :MC=^M:CL=^[^L:CN#6:GD=^X:GE=^[1^]:\
+        :ML=^[(1$0)`($1)a($2)c($3)d($4)b($$:lt=01234:\
+        :OW=^]^_:RC=^[^Z:SC=(,!3,@ & *,@ &+!1,@ &@ *,@ &+!2:\
+        :TB=^]%t^_:VS=^]:\
+        :xr#1024:XY=%t:yr#780:
+@end example
+@noindent
+This is one of the longest entries in the graphcap file - all of the terminals
+which are Tektronix emulators explicitly include this entry, so they only
+need provide the capabilities that are different from the Tektronix. As an
+example, the entry for a Pericom reads
+@example
+pericom|Pericom:\
+        :GE=^]:TB=^](2#7-!2)%t^_:\
+        :tc=tek4012:
+@end example
+@noindent
+The @code{|} separate the aliases, and the final field @code{tc=tek4012} tells
+stdgraph to take all other fields from the entry for @code{tek4012}, given
+above. If you have specified a list of graphcap files, each will be
+searched in order for each @code{:tc=} continuation. If you don't want the
+search to begin again use @code{TC}, e.g.
+@example
+graphon|Graphon which claims to support lw:\
+        :LW=:TC=graphon:
+@end example
+@noindent
+if you had used @code{:tc=graphon:} this would have been recursive and
+illegal, but as @code{TC} doesn't restart the search it merely has the
+effect of adding (or in general, replacing) an capability in a
+preexisting graphcap entry.
+@findex graphcap, overriding with private file
+
+Control characters are entered as ^A, ^B, and so on (those
+are two characters, `^' and `A'). `Escape' may
+be represented as ^[, \E, or in octal as \033. Because the
+normal way of handling strings in C treats @code{\0} as meaning
+`end of string' you can't simply put a @code{\000} into a graphcap
+entry, instead write @code{\377} and SM'll interpret it as @code{\0}. (If
+you need a real @code{\377} enter @code{\377\377}).
+@findex graphcap, entering nul
+@findex weird, graphcap eats a \377
+If a delay of so many
+milliseconds is required before the transmission of a string, it is given
+first (followed by a @code{*} if it is to be applied to each line
+affected). This leads to problems with graphcap entries that start with
+numbers, you must precede them with a space or (if the string is run through
+the encoder) insert a no-op e.g. @code{:CP=()1000:}.
+Numerical values are preceded by a #, so @code{:co#80:} means that co
+(the number of columns
+displayed) is 80, while @code{:MC=^M:} means that MC (the cursor
+delimiter) consists of the character ^M. This could
+just as well have been written @code{:MC=\010:}. If the first character of
+a capability is `@@', it specifies that that capability is not present for that
+terminal (e.g. @code{:lt@@=1234:} specifies that @code{lt} is not defined).
+A field may simply not be provided if it is irrelevant, although in this
+case it may be supplied by a @code{tc} or @code{TC} continuation.
+@findex labels partly in different fonts
+A common set of graphcap entries to `comment out' are @code{TB} and
+@code{TE}, which deal with hardware character sets. If you don't want
+your plotter to use it's internal fonts simply insert `@@' before the `='.
+By inserting their private file before the system one in the list of
+graphcap files, users can tailor the entries to their liking.
+
+We use a subset of the graphcap capabilities defined by the IRAF group, and the
+distinction between upper and lower case parameters comes from them. In a few
+cases our usage is different from theirs, in these cases we have
+specified our own capabilities
+(@code{CD}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{MC},
+@code{DD}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{SY},
+@code{LT}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{ML}, and
+@code{TS}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{TB}.
+We have also added the @code{lt}, @code{BP}, @code{BR}, @code{CO}, @code{CS},
+@code{CT}, @code{DC}, @code{DT}, @code{DV}, @code{EP}, @code{ER}, and @code{TC}.
+capabilities.).  
+First the lower case, which specify mostly dimensions:
+@table @code
+@item ch
+Height of a character, relative to the screen height being 1.0.
+@item co
+Number of columns displayable, with characters of width cw.
+@item cw
+Width of a character, relative to the screen width being 1.0.
+@item li
+Number of lines displayable, with characters of height ch.
+@item lt
+Which linetypes are supported in hardware.
+@item pc
+Pad character for delays (use NUL if not supplied).
+@item xr
+x dimension of plotting device. This may be specified as an argument from
+the @code{DEVICE} line. E.g. for @code{DEVICE example 1200 1400},
+@code{:xr=$1:yr=$2:} is equivalent to @code{:xr#1200:yr#1400:}
+@item yr
+y dimension of plotting device. See the previous entry for an example.
+@end table
+Of these, @code{co} and @code{li} are not currently used. 
+@tindex ch (Character Height)
+@tindex co (number of COlumns)
+@tindex cw (Character Width)
+@tindex li (number of LInes)
+@tindex lt (Line Type)
+@tindex pc (Pad Character)
+@tindex xr (X-Resolution)
+@tindex yr (Y-Resolution)
+
+The capitalised capabilities mostly tell
+the stdgraph routines how to plot lines, clear the screen and so forth. Some
+of these are no more than character strings to send to the terminal,
+(e.g. @code{CL} to clear a screen), but
+some use the graphcap entries to programme a sort of RPN calculator, which 
+computes the bit-patterns that the terminals demand. This calculator is usually
+referred to as the `encoder'.
+We'll first list all the capabilities in a reasonably ordered way,
+then describe the encoder and what it can do,
+and then go through a number of examples.
+
+First the fields which are simple character strings to be written to the
+terminal.
+The second
+column is an attempt to explain the etymology of the two character name.
+@table @code
+@item CL (CLear)
+Clear the screen, possibly also the text screen.
+@item CW (Close Workstation)
+Close terminal, expect no more graphics.
+@item DS (Draw Start)
+Prepare the terminal to draw a line.
+@item DE (Draw End)
+Finish a line.
+@item FD (Fill Draw)
+Draw a side of a filled polygon.
+@item FE (Fill End)
+Finish drawing a filled region.
+@item FS (Fill Start)
+Start drawing a filled region.
+@item GD (Graphics Disable)
+Return the terminal to a character mode.
+@item GE (Graphics Enable)
+Set the terminal to graphics mode.
+@item IF (Initialisation File)
+Used to supplement OW if sequence is too long.
+@item LR (Load Registers)
+(Used by the RPN encoder, see `binary encoding').
+@item ME (Mark End)
+Finish a series of dots movements.
+@item MS (Mark Start)
+Start a sequence of dots movements.
+@item OW (Open Workstation)
+Prepare a terminal to produce plots.
+@item OX (Open workstation)
+(a continuation of OW).
+@item OY (Open workstation)
+(a continuation of OX).
+@item OZ (Open workstation)
+(a continuation of OY).
+@item PG (PaGe)
+Start a new page.
+@item VE (? End)
+Finish a series of pen (beam) movements.
+@item VS (? Start)
+Start a sequence of pen movements.
+@end table
+@tindex CL (CLear)
+@tindex CW (Close Workstation)
+@tindex DS (Draw Start)
+@tindex DE (Draw End)
+@tindex FD (Fill Draw)
+@tindex FE (Fill End)
+@tindex FS (Fill Start)
+@tindex GD (Graphics Disable)
+@tindex GE (Graphics Enable)
+@tindex IF (Initialisation File)
+@tindex ME (Mark End)
+@tindex MS (Mark Start)
+@tindex OW (Open Workstation)
+@tindex OX (Open workstation)
+@tindex OY (Open workstation)
+@tindex OZ (Open workstation)
+@tindex PG (PaGe)
+@tindex VE (? End)
+@tindex VS (? Start)
+For hardcopy devices @code{PG} should start a new page.
+The @code{GD} and @code{GE} are used by terminals which spend some of their
+time being graphics terminals, and some being regular text terminals.
+The various ``... Start'' and ``... End'' capabilities assume that the
+points in question are specified by the @code{XY} entry (except for
+@code{FS}/@code{FE} where @code{FD} is used instead). Typically, the
+`start' is used to put the device into (e.g.) line-drawing mode, then
+the line is drawn with a sequence of @code{XY}'s, then it is taken out
+of (e.g.) line mode with the `end'. The support for filling areas
+assumes that a region is specified by drawing a line around it; if
+this isn't so, you'll have to omit area fill from graphcap, and rely
+on SM emulating it for you. An example would be a Graphon
+GO-250, which has an area fill where you fill rectangular areas by
+specifying opposing corners; this is not acceptable to SM.
+
+Some operations require an argument, for instance setting the hardware line
+type, specifying which cursor to read@footnote{Actually, SM always
+uses cursor 1}, or specifying
+coordinates. In the following properties, the expected parameters are listed
+after the field names, the first to go into register 1, the second into
+register 2, and so on. If you haven't skipped forward to the section on the
+encoder this will seem obscure, but all will become clearer.
+@table @code
+@item CO(r,g,b) (COlour)
+Set next colour to (r,g,b).
+@item CS(n) (Colour Start)
+Start defining n colours.
+@item CT(i) (Colour Type)
+Set a colour.
+@item DC (Default Colour)
+Set default colour.
+@item LW(f) (Line Weight)
+Set the lineweight to f.
+@item MC(i,x,y) (sM Cursor)
+Decode a cursor response.
+@item ML(i) (sM Line)
+Set the linetype to i.
+@item RC(c) (Read Cursor)
+Read the cursor. `c' is for compatibility.
+@item SC (Scan Cursor)
+Decode the cursor reply following a RC.
+@item TB(x,y) (Text Begin)
+Start writing text at (x,y).
+@item TE (Text End)
+Stop interpreting characters as text.
+@item XY(x,y) (X Y)
+Encode the coordinate pair (x,y).
+@end table
+@tindex CO (COlour)
+@tindex CS (Colour Start)
+@tindex CT (Colour Type)
+@tindex DC (Default Colour)
+@tindex LW (Line Weight)
+@tindex MC (sM Cursor)
+@tindex ML (sM Line)
+@tindex RC (Read Cursor)
+@tindex SC (Scan Cursor)
+@tindex TB (Text Begin)
+@tindex TE (Text End)
+@tindex XY (X Y)
+Some of the above comments are a little cryptic, but we return to the 
+various graphcap parameters that take arguments as examples after describing
+the encoder. Note that it isn't sufficient to change the 
+@code{ML} entry --- for a linetype to be supported in hardware it must also be 
+included in the @code{lt} list, e.g. @code{lt=01234}. Similarly, for hardware
+fonts you must include @code{ch} and @code{cw}, and @code{TB} must be present
+even if it does nothing. Note that @code{LW} is passed a floating point number,
+and that the special case 0 is special, meaning choose the most efficient line
+thickness for the device.
+
+The following capabilities have to do with rasterising and are
+discussed in their own section near the bottom of this appendix:
+@table @code
+@item BP (Bit Pattern)
+Bit patterns for rastered data.
+@item BR(i) (Begin Row)
+Begin row of rastered data.
+@item EP (Empty Pattern)
+Bit pattern for rastered empty pixel.
+@item ER (End Row)
+End of a row in rastered data.
+@item ll (lINE lENGTH)
+Length of a row for @code{DR=hex}.
+@item MR (Many Rows)
+Number of rows output at once.
+@item nb (nUM bYTES)
+Number of bytes to process at once for MR.
+@item RA (RAster)
+(RA is no longer supported -- see DV).
+@item RD (Raster Device)
+Type of device if not generic.
+@end table
+@tindex BP (Bit Pattern)
+@tindex BR (Begin Row)
+@tindex EP (Empty Pattern)
+@tindex ER (End Row)
+@tindex MR (Many Rows)
+@tindex ll (lINE lENGTH)
+@tindex nb (nUM bYTES)
+@tindex RA (RAster)
+@tindex RD (Raster Device)
+Raster devices also make use of @code{xr}, @code{yr}, @code{CW}, @code{OW},
+@code{OX}, @code{OY}, @code{OZ},
+@code{OF}, and @code{SY} which are also used by stdgraph itself.
+
+Finally there are some capabilities that are designed for driving
+hardcopy devices and devices that may not use stdgraph at all:
+@table @code
+@item DT (Device Type)
+Type of device in use.
+@item DV (DriVer)
+Name of hard-coded driver.
+@item OF (Out File)
+The file to direct output to.
+@item RT (Record Terminator)
+(RT is no longer supported).
+@item SY (SYstem)
+The action to be taken upon closing the OF file.
+@end table
+@tindex DT (Device Type)
+@tindex DV (DriVer)
+@tindex OF (Out File)
+@tindex RT (Record Terminator)
+@tindex SY (SYstem)
+The @code{OF} file may be specified with the last characters being `XXXXXX', in
+this case the Xs are replaced by a random characters, to make a unique
+filename. If the variable @code{temp_dir} is defined in the environment
+file, then @code{OF} is created in that directory, otherwise it is put in the 
+current directory. The @code{DT} string, if present, specifies the type
+of device in use. Currently the values are only used under VMS, where
+they are used to decide how to open files. The recognised values are
+``qms'' and ``imagen''. In general DT should be omitted, as it
+requires programming support, but it can help stdgraph to deal with
+hostile operating systems. For a discussion of the @code{DV}
+entry, @xref{New Devices}.
+
+The @code{SY} string is passed to the operating system after graphcap
+variables have been expanded (they are similar to macros in Unix's
+@code{make}). A variable is defined with a line like:
+@example
+	name = value
+@end example
+@noindent
+where @code{name} must start in the first column. Any white space surrounding
+the equals sign is removed, as are any trailing blanks. If @code{value} starts
+with a $ it is taken to be a regular SM variable.
+Variables may be defined in any of the graphcap files in the search path,
+and if a name appears more than once the first value
+found will be used (if you change graphcap without leaving SM the variables
+are re-read). There is no guarantee that all the graphcap files in the
+path will be read but this is unlikely to be a problem.
+The major use for graphcap variables is probably for encoding
+@code{rasterise}'s full name:
+@example
+BIN = /usr/local/bin
+device|some device:\
+        :DV=raster:OF=tst_XXXXXX:\
+           @dots{}
+        :SY=$@{BIN@}/rasterise -r $0 $F $1:
+@end example
+
+Variables are written as @code{$@{name@}} @emph{not} @code{$name}, which
+means that they will not (usually) conflict with the operating system's
+uses for dollar signs. The graphcap variable @code{F} is special, as it
+always expands to the filename specified as @code{OF}. As a 
+concession to history it may be written as @code{$F} instead of @code{$@{F@}}.
+Also special are @code{$"prompt"}, which is replaced by a string read from the
+keyboard (you are prompted with @code{prompt}),
+and @code{$n} which is replaced by the n'th argument to the @code{DEVICE}
+command.
+For example, if the DEVICE command were @code{DEVICE qms lca0 Hello}
+(or @code{DEVICE 1 qms lca0 Hello}), then
+the device name @code{qms} would be $0, @code{lca0} would be $1 and
+@code{Hello} $2.
+If a `$' is found under other circumstances it is simply treated as a dollar
+sign, but if you wish you can escape it with a \ (but remember that
+the \ must itself be escaped so to explicitly
+escape a dollar in an @code{SY} string you must type @code{\\$}).
+This means that (under Unix)
+you can access environment variables from @code{SY} strings, e.g.
+@code{:SY=mv $@{F@} $HOME:}. If a variable is referenced but no value is
+provided when the device is opened a warning message is printed; this
+message can be suppressed by referring to the variable as (e.g.)
+@code{$%1}.
+ 
+The SY string is only used if an OF file has been specified. There is no
+guarantee that SY is supported by all operating systems, but it is certainly
+available under Unix and VMS (SY requires the C call `system()', as defined
+for Unix. We have provided one for VMS, and any serious SM
+implementation would have to have one too.)
+A trivial example of SY in use on an Unix system would be:
+@example
+:SY=cat $F ; rm $F:OF=out_XXXXXX:
+@end example
+@noindent
+(@code{cat} prints a file, @code{;} separates multiple commands on a line,
+@code{rm} deletes a file). Because not all operating systems can support
+multiple commands on one line, you can use \n within a SY string to
+separate commands. For example, under VMS that @code{SY} string could have been
+written
+@example
+:SY=type $F. \n delete $F..*:OF=out_XXXXXX:
+@end example
+@noindent
+(Type adds a `.lis' unless explicitly given a closing `.', delete
+requires a version number, hence the @code{$F.} and  @code{$F..*}.)
+An example of the use of @code{$""} would be
+@example
+:SY=mv $F $"Output filename? ":
+@end example
+@noindent
+which renames the @code{OF} file to whatever you want.
+
+The @code{RT} capability has been deleted in version 2.0, in favour of
+using @code{DT}; The @code{RA} capability has been replaced in version
+2.1 by @code{:DV=raster:}.
+
+@node Binary Encoder, Graphcap Examples, Graphcap File, Graphcap
+@appendixsec Stdgraph's Binary Encoder
+
+Different terminals have very different ways of doing the same thing. For
+example to move the beam to (200,200), a vt240 in REGIS mode needs to be
+told `[200,259]', while a Tektronix 4010 needs `&h&H'. In order to cope
+with this much diversity, stdgraph has a binary encoder with a 50 element
+stack, 10 registers and about a dozen operators. The encoder communicates with
+the rest of the world through its registers - for example in encoding a
+coordinate pair it expects to find x in register 1, and y in register 2. When
+reading a graphcap string, initially stdgraph simply copies the input
+characters to an output string, which is then written to the terminal.
+This is exactly what it does when it interprets the OW string
+for a Tektronix, @code{OW=^]^_}. However, in addition
+to characters such as @code{^} being special, it also recognises the
+following as being special:
+@table @code
+@item '
+escape special meaning of next character
+@item %
+Begin a format string
+@item (
+Switch from copy into encode mode.
+@end table
+When in `encode' mode, the following operators are available:
+@table @code
+@item '
+Escape next character (recognised everywhere)
+@item %
+Formatted output, e.g. %d, %g, or %t
+@item )
+Revert to copy mode
+@item #nnn
+Push signed decimal number nnn onto the stack
+@item $
+Part of a switch statement
+@item .
+Pop a number from the stack, and put it in the output string
+@item ,
+Get next number from input string, and push it onto the stack
+@item `str`
+Prompt with str, then read a character and push it onto the stack
+@item &
+Modulus operator (similar to an AND of the low order bits)
+@item +
+Add (similar to OR)
+@item -
+Subtract (similar to AND)
+@item *
+Multiply (a left shift if number is a power of 2)
+@item /
+Divide (a right shift if number is a power of 2)
+@item <
+Less than (0:false, 1:true)
+@item >
+Greater than (0:false, 1:true)
+@item =
+Equals (0:false, 1:true)
+@item ;
+Branch, <boolean><offset>; (; is at 0 offset)
+@item 0-9
+Push register 0-9 onto the stack
+@item !N
+Pop the top of the stack into register N.
+@item !!
+Pop the stack, and delay that many milliseconds.
+@item |
+Convert the top of the
+stack from float to int (it is rounded rather than truncated).
+@end table
+
+Unless otherwise specified the stack is taken to be integer-valued,
+although in fact it can support either integer or floating point
+values. There is no type checking -- if you ask the encoder to print
+the top of the stack as a float, but you stored an int, you can expect
+trouble. If it is needed we might add more floating point support;
+apart from printing the top of the stack, the only floating
+point operation supported is `|' which rounds the top of the stack
+(taken to be a float), converting it to an integer (so, for example,
+@code{1|1!} converts the contents of register 1 from float to int).
+
+All the binary operators operate on the top 2 elements of the stack, and
+push the answer onto the top. Any other character is interpreted as an
+integer, and pushed onto the stack - for instance, `@@' is the same as `#64',
+octal 100. A blank is the octal constant 040.
+
+The @code{%} command means, `format the top of the stack, and write
+it to the
+output string'. The format string may be any printf format specifier (printf
+is the C formatted i/o function. In practice, the only formats that you are 
+likely to need are @code{%c}, @code{%d}, @code{%g} and @code{%t} -- and
+@code{%t} isn't even in C!
+@code{%c} means `write the integer as a character', @code{%d} means
+`format the number as a decimal integer', @code{%6d} means
+`and make it fill 6 characters', and @code{%g} means format a floating
+point number.
+If you should need to know more, look at any book on C.) The special format
+@code{%t} means `take x and y from registers 1 and 2, and format them for a
+Tektronix'. As we shall see below, you can programme the encoder to do this,
+but Tektronix emulators are so common that @code{%t} is provided for
+efficiency's
+sake. In fact there are two Tektronics formats, @code{%t} for 10 bit addresses,
+and @code{%T} for 12 bit addresses.
+The switch and branch instructions are discussed below, while examining
+specimen @code{ML} and @code{SC} strings.
+
+@node Graphcap Examples, Graphcap Cursors, Binary Encoder, Graphcap
+@appendixsec Examples of Graphcap Entries
+
+As a simple example, the ANSI command to set a non-graphics cursor to a 
+given line and column is
+@example
+^[[ line ; column H
+@end example
+@noindent
+Assuming that the x and y coordinates are in registers 1 and 2 respectively,
+the corresponding graphcap string would be
+@example
+"^[[(2)%d;(1)%dH"
+@end example
+@noindent
+(where the quotes are not part of the format.) What if line and column
+coordinates start at 1, but the terminal wants them starting at 0? then
+the format would be
+@example
+"^[[(2#1-)%d;(1#1-)%dH"
+@end example
+@noindent
+You could write those @code{#1}'s as @code{^A} which would be slightly
+faster, but why bother?
+
+As promised above, it is also possible to encode Tektronix-type coordinates.
+The desired bit format for a 10-bit address is
+@example
+0 1 ya y9 y8 y7 y6
+1 1 y5 y4 y3 y2 y1
+0 1 xa x9 x8 x7 x6 
+1 0 x5 x4 x3 x2 x1
+@end example
+@noindent
+where x1 is the least significant bit in x, and ya is the tenth bit in y.
+If x and y are in registers 1 and 2, the simplest XY (move/draw to
+(x,y)) string is
+@example
+"%t"
+@end example
+@noindent
+but if this weren't available the following string would work:
+@example
+"(2 / +.2 &`+.1 / +.1 &@@+."
+@end example
+@noindent
+(as before, the double quotes don't belong to the format). To understand this,
+First look
+up the octal values of ` ' (040), ``' (0140), and `@@' (0100). Then the first
+@code{`('} puts the encoder into encode mode. @code{`2 /'} pushes the Y value
+onto the
+stack, and right shifts it by 5 bits (` ' is 100000 in binary). The next
+@code{` +.'} adds the resulting bit pattern `0 0 ya y9 y8 y7 y6' to 0100000 and
+transfers it to the output string, and we have produced the desired first
+byte. The other bytes are produced in a similar fashion.
+
+As another example consider an AED512, which is reputed to desire the bit
+sequence
+@example
+xa x9 x8 yb ya y9 y8
+x7 x6 x5 x4 x3 x2 x1
+y7 y6 y5 y4 y3 y2 y1
+@end example
+@noindent
+The graphcap string
+@example
+"(#128!919/^N*29/+.19&.29&."
+@end example
+@noindent
+will accomplish this. We could further optimise this by loading the value
+`#128' into register 9 once and for all with the LR capability, so a part
+of the graphcap entry would appear as
+@example
+":LR=#128!9:XY=(19/^N*29/+.19&.29&.:"
+@end example
+@noindent
+I've never seen an AED512, but this should work anyway.
+
+The switch instruction has the form
+@example
+$i @dots{} $j-k @dots{} $l @dots{} $D @dots{} $$
+@end example
+@noindent
+where @code{i}, @code{j}, @code{k}, and @code{l} are integers.
+The encoder pops the top value off the stack adds `0' to make it
+a character, and scans forward looking for a @code{$} followed by that
+character.
+@code{$2-5} would match the characters `2', `3', `4', or `5'. When it
+has met its match, it executes the instructions that it meets until it
+reaches the next @code{$} in execute mode. The encoder then skips forward
+until just after the
+@code{$$}, and resumes scanning. If the character from the stack is not
+matched by
+any of the cases, the encoder will use the @code{$D} (i.e.@ default) case,
+if present.
+
+As an example, consider how stdgraph sets the type of line to draw.
+SM expects linetype 0 to be solid, 1 to be dotted, and so on.
+We expect a linetype in register 1 and have to do something with it.
+
+For a Tektronix, the linetypes are set by an ML entry:
+@example
+ML=^[(1$0)`($1)a($2)c($3)d($4)b($$
+@end example
+@noindent
+What does this do? The @code{^[} is simple, it is executed in copy
+mode, and writes the character @code{^[} to the output string.
+The @code{(1} enters encode mode, and places the contents of register 1, the
+desired linetype, on the stack. Then begins the switch. If the linetype is
+0, then the encoder scans past the @code{$0} and starts reading the string
+again with @code{)`}. The @code{)} takes the encoder back to copy mode,
+so it copies @code{`} to the output string, and encounters a
+@code{($} which puts it back into encode mode. Once in encode mode it
+recognises the @code{$} as the end-of-case, and scans forward until it reaches
+@code{$$}, where it stops. We deduce that the set-linetype-0 escape sequence
+is @code{^[`}. If register 1 had contained a 2, after 
+entering the switch the encoder would have scanned forward to @code{$2}
+(ignoring
+all characters as it went), and copied @code{c} to the output string.
+
+If you want to support erasing of individual lines (@code{LTYPE ERASE} or
+@code{LTYPE 10}) you'll have to include a @code{$\:} case in your switch
+(as @code{:} follows @code{9} in the ascii character set, and an un-escaped
+@code{:} would end the graphcap entry). You'll have to escape the @code{:}
+in the @code{lt} list as well. When leaving erase mode, by specifying any
+other line type, the device will first
+be set to @code{LTYPE 11} (i.e. @code{ML}'ll get a @code{;}) before it's
+set to the desired 
+@code{LTYPE}; this gives the driver a chance to reset itself. It's wise
+to also turn off 
+erase mode when closing the device. An example of an entry supporting
+erasing lines is a graphon, which includes
+@example
+:lt=01234\:;:CW=^[1^]^[^A^[2\
+:ML=^_^[(1$0)`($1)a($2)c($3)d($4)b($\:)`^[^P($;)^[^A($$:
+@end example
+@noindent
+as @code{^[^P} puts a graphon into erase mode, and
+@code{^[^A} takes it out. Note that in erase mode the
+linetype is set to solid (@code{^[`}), so as to erase all types of lines.
+
+There is also a branch instruction, which has syntax
+@example
+<boolean><offset>;
+@end example
+@noindent
+If the boolean is true (non-zero), then skip (offset - 1) characters in the
+programme
+string. The offset may be either positive or negative, and the `;' is at
+offset 0. For example,
+@example
+(0#15;)Goodbye(#1#8;)Hello()\n
+@end example
+@noindent
+will print `Goodbye\n' if register 0 contains zero, or `Hello\n' otherwise.
+As an example of the use of `;', consider using the 
+encoder to decode a string.
+Remember that `,' meant `read a
+character onto the stack', and that there was a graphcap capability SC to
+decode cursor responses. Suppose that we are dealing with a vt240 in REGIS
+mode, then a cursor read will return a string of the form `k[nnn,mmm]' where
+`k' is the character you hit, and (nnn,mmm) is the cursor position. We want
+to put k into register 3, and (x,y) into registers 1 and 2. This is a little
+messy, as we'll have to convert the ascii positions into integers. The desired
+graphcap entry is
+@example
+SC=(#0!1#0!2,!3,#0!8,#48-!99$0-91#10*9+!1#1!8$$8#1=#-39;\
+0!8,#48-!99$0-92#10*9+!2#1!8$$8#1=#-39;62-!2):
+@end example
+@noindent
+The first part is simple enough, store 0 in registers 1 and 2, store the
+first character in register 3, read a character (the [), and store 0 in
+register 8. 
+Then we come to @code{,#48-!99$0-91#10*9+!1#1!8$$8#1=#-39;}.
+The @code{,#48-} reads a character and converts it to an digit (48 is the
+decimal
+code for `0'), then stores it in register 9. The switch then checks if we do
+have a digit, if so we multiply register 1 by 10 and add the new digit. We then
+set register 8 to 1 and finish the switch which is here being used as an
+if statement. The @code{8#1=#-39;} tests register 8 against 1 (i.e.@ checks if
+we found a digit), and if we did it jumps back 39 characters, to read the
+next character@footnote{In counting characters for jumps, the ; is at
+character 0 and combinations such as ^N count as one character}.
+So we are accumulating the integer nnn in register 1, just as we needed to.
+The rest of the string deals with decoding the y coordinate.
+
+Sometimes you don't want to read from the input string, but from the
+keyboard instead. In this case use @code{`str`}, e.g.
+@code{(`Hello\: `#48-$0)False($D)True($$)\n:} will prompt you with
+@code{Hello: }, then read a character from the keyboard. If you enter
+a `0' it'll print @code{False}, otherwise it'll print @code{True}. Of course,
+in reality you'd want to do something more useful (such as erasing
+the screen).
+
+@node Graphcap Cursors, Graphcap Colours, Graphcap Examples, Graphcap
+@appendixsec Using Cursors with Graphcap
+@findex cursor, graphcap
+We have just been through a long explanation of how to decode a cursor string,
+but how did stdgraph know what to read in the first place? After receiving the
+RC string, the terminal will send back a sequence of bytes, and the format
+of these bytes must be specified in graphcap.@footnote{If the RC string
+is given as @code{prompt}, then you will be prompted for the key you would
+have hit, and the (x,y) position the cursor would have been at, if the
+terminal that you were using could support a cursor.}
+There are two ways to do this,
+either by specifying a sequence of characters which @file{end} the response
+string
+along with a minimum number of characters to read, or by specifying a pattern
+that the terminal response is to match. A typical example of the former is a
+Tektronix whose cursor response may be chosen to be @code{@key{control-M}}
+(this is
+called the GIN response, and can usually be set in the terminal setup). We
+know that the terminal will also send 5 other bytes (the key struck and the
+encoded x,y coordinates so we would specify
+@findex GIN terminators
+@example
+:MC=^M:CN=6:
+@end example
+On the other hand, a REGIS terminal sends `k[nnn,mmm]'. This can be specified
+as
+@example
+:MC=?[#*,#*]:CN=-6:
+@end example
+@noindent
+where the negative value of CN means that we are providing a pattern not just
+a terminator (as before, the absolute value of CN is the minimum number of 
+bytes in a cursor response). In MC strings, but nowhere else, the characters
+@code{?}, @code{#}, and @code{*}
+are special (although their special meanings may be escaped with
+a @code{\}). @code{?} will match any character, @code{#} any digit, and
+@code{*} means `match zero or more of the preceding characters'. So a MC
+string of
+@code{a#*?ba} will match `aaa1111bbaa' at the third character. (Incidently,
+@code{a#*?a} would match at the first). Because this special character syntax is
+different from that used in standard graphcap files for IRAF, the name of
+this graphcap parameter has been changed from @code{CD} to @code{MC}.
+
+If your cursor is attached to a mouse, if possible the buttons should
+be set up to generate 
+`e', `p', and `q' from left to right (if you have that many buttons).
+If you have only one button, `p' is probably the best choice.
+@findex mouse buttons
+
+@node Graphcap Colours, Modified Entry, Graphcap Cursors, Graphcap
+@appendixsec Using Colours with Graphcap
+
+The number passed to @code{CT} are the same as those specified with the
+@code{CTYPE INTEGER} command, so initially they specify
+default, white, black, blue, red, green, magenta, yellow, and cyan
+(white is 1). 
+These are the colours corresponding to turning one, zero, two, or three of the 
+primary colours on. The default colour to use for a device is
+specified by the @code{DC} capability, e.g. @code{:DC="red":}.
+
+The @code{CS} and @code{CO} capabilities are used to support the @code{CTYPE = expr} command. First @code{CS} is used to tell the device how many
+colours to expect, then @code{CO} is used for each number, with red, green,
+and blue as its arguments. In this case @code{CT} passes an index
+into the set of @code{CO} values. If you want to get an index, but
+don't need @code{CS} and @code{CO}, you must still provide them; just
+provide a no-op such as @code{:CS=():}.
+@findex colour, graphcap entry
+@findex color, graphcap entry
+
+@node Modified Entry, New Entry, Graphcap Colours, Graphcap
+@appendixsec How to Modify a Graphcap Entry
+@findex modifying a graphcap entry
+@findex graphcap, modifying an entry
+
+You might think that all that you have to do to modify a graphcap entry is
+to start up your favourite editor, and start typing. You could do that,
+many people have, but it isn't recommended because you'll have to do it
+again when a new release of SM comes along. It's better to use SM's graphcap
+search path (@pxref{Graphcap File}) as follows:
+
+Let us assume that you want to modify the xterm entry to print something
+every-time that is changes from graphics to alpha mode or vice versa (why?
+so as to fix a problem with excessive screen switching). First
+set up the system @file{.sm} file to look like:
+@example
++graphcap               /my/private/graphcap
+graphcap                /usr/local/lib/sm/graphcap
+@end example
+@noindent
+which tells SM to first search @file{/my/private/graphcap}
+then @file{/usr/local/lib/sm/graphcap} (the graphcap file that we provide)
+for graphcap entries. Then edit @file{/my/private/graphcap}
+and add the entry
+@example
+xterm|an xterm with noisy mode flipping:\
+        :GE=\nE\n^[[?38h:GD=^[^C\nD\n:TC=xterm:
+@end example
+@noindent
+Note the use of @code{:TC=xterm:} which says that SM should skip this file
+when looking for the definition of @code{xterm}, thus avoiding an infinite
+loop.
+
+When a new version of SM is released your new definition will continue
+to work (unless we change the definition of @code{xterm} in which case
+you'll have some work to do anyway). You can use this technique to change
+entries or add your own new ones without modifying the system file; all
+of your changes are in @file{/my/private/graphcap}.
+
+@node New Entry, Raster, Modified Entry, Graphcap
+@appendixsec Writing a New Graphcap Entry
+@findex graphcap, writing a new entry
+@findex device, adding new ones
+So, if you're faced with a new piece of hardware what should you do?
+First of all, don't panic -- writing entries is quite simple. Second,
+see if your device is basically the same as one that already exists
+in graphcap, for example the entry for `graphon' uses the `selanar'
+entry, and it in turn uses `tek4010'. You might be able to get away
+with using @code{tc} to satisfy most of your device's needs.
+
+Before writing your new entry please read the previous section to learn
+the recommended strategy for modifying graphcap files.
+
+Let's assume that you are faced with a totally new type of device
+and really do have to start from scratch. First find out how large
+your device is, and fill in the @code{xr} and @code{yr} entries. If you
+are going to use hardware character sets you also need @code{ch} and
+@code{cw}.  Next decide on the string to initialise the device -- does
+it need to be set into some weird mode -- and put it into @code{OW}.
+Put the string to reset it into @code{CW}. Now, if the initialised
+device needs to be put into a special graphics mode put it into @code{GE}
+and its inverse into @code{GD}. Next, you need to tell SM how to
+draw a line and move the plot pointer. So enter the @code{DS}, @code{XY},
+@code{DE}, @code{VS}, and @code{VE} capabilities. Of course, if one
+isn't required, don't put it in. If you have some sort of
+printer you probably want to store all the commands in a file (@code{OF=}), and to plot them (@code{SY=}). You should now be ready to make
+your first test, so plot a box. If it doesn't look right, fix it. Or you
+might like to try printing the cover (@code{load cover cover}).
+
+When all is well, you can begin looking into options that might make your
+graphcap entry more efficient. Look through this appendix to see what
+is available. Does your device support line types? Add
+@code{ML} and @code{lt}. Heavy lines? @code{LW}. Coloured lines or a
+cursor? @xref{Graphcap Colours}.
+Filled polygons? @code{FS}, @code{FD}, and @code{FE}. Dots? @code{MS} @code{ME}.
+Hardware characters? @code{TS} @code{TE}. If your device produces
+hardcopy you should arrange to start a new page with @code{PG} (the
+@code{PAGE} command).
+When you have finished please send us your new entry.
+
+@node Raster, Compiling, New Entry, Graphcap
+@appendixsec Support for Raster Devices
+@findex graphcap, raster devices
+@findex raster, graphcap support
+Stdgraph can only handle devices that can plot vectors specified by
+their endpoints; unfortunately some devices (such as most line
+printers) can only plot graphs when they have been reduced to rows of
+`on' and `off' pixels. SM supports such devices through
+@code{DEVICE raster} and a separate programme called @code{rasterise}.
+You specify that a device in a graphcap file is a raster device by
+using @code{DV}: @code{:DV=raster:} (The old form @code{:RA:} is no
+longer supported).
+It communicates with the rasteriser through graphcap, so the whole
+process is user transparent. A separate rasterising programme was
+written so as to allow the plot to be produced in the background while
+you do more productive things, and to allow the rasterising to be
+done on a remote machine.
+
+@code{DEVICE raster} produces a file, whose name is specified as usual
+by the @code{OF} field in graphcap, containing the vectors to be
+plotted (as groups of four short integers) in device coordinates,
+where the size of the device is taken from @code{xr} and @code{yr}. When
+the device is closed, the command specified by @code{SY} are executed,
+and these will usually be of the form
+@code{rasterise -r $0 $F outfile\n print_it outfile\n delete outfile}
+where @code{print_it} is the proper way of actually getting a plot. Under Unix,
+the command might well be something like
+@code{(rasterise -r $0 $F - | lpr -v -r -P$1)&} dispensing with the
+temporary @code{outfile}.
+
+@findex rasterise, description
+What do these @code{rasterise} commands do? The command syntax is
+@code{rasterise [-flags] device infile outfile}, where the infile may
+be specified as `-' to use standard input (sys$input to VMS),
+where the outfile may
+be specified as `-' to use standard output (sys$output to VMS).
+Possible flags are @code{r} to remove the infile after use, @code{R} to
+rotate the plot through 90 degrees, and @code{v} for more verbose operation.
+@code{Rasterise} then reads the data in the infile, and produces a
+rasterised version, row by row, on the outfile. In order to do this,
+it looks in graphcap for an entry for @code{device}, and uses the @code{xr},
+@code{yr}, @code{OW} (and @code{O[XYZ]}), and @code{CW} fields
+as usual.@footnote{In looking for the graphcap file, any environment file
+or search path specified on the SM command line with a @code{-f} or @code{-u}
+flag is ignored.
+}
+@findex command line, -f and -u options ignored
+
+Let's first consider a simple, one-line-at-a-time device such as a line
+printer.  Before writing each row to @code{outfile}, rasterise encodes
+the @code{BR} (Begin Row) capability, using the current row number as an
+argument, and encodes @code{ER} (End Row) at the end of the line. By
+default, it assumes that the raster device simply wants bits turned on
+where a dot is required, but this can be overridden using the @code{BP}
+and @code{EP} capabilities.  @code{EP} (Empty Pixel) specifies the bit
+pattern for a character to represent white space.  In the simple case
+mentioned a moment ago, this would be simply NUL, with no bits on, but
+sometimes this doesn't suffice (see examples below).  @code{BP} (Bit
+Pattern) is a string, giving the bit patterns required to turn on the
+various pixels. In the default case, @code{BP} could be specified as
+@code{BP=\001\002\004\010\020\040\100\200}, so @code{\001} would turn on
+the first (rightmost) dot. Because there are eight characters given in
+the string, @code{raster} assumes that it can fit eight pixels into a
+single character. If you don't specify a @code{BP} this is what will be
+used.
+Some devices desire or require that the data be sent as hexadecimal numbers
+rather than as binary; see the @code{RD=hex} graphcap entry.
+
+Some other devices (e.g. Epson printers) choose to print several lines
+at a time, so a single byte transmitted to the device might print 8
+lines, but only the first pixel of each line. Such devices are
+described to graphcap by being given the @code{MR} (Many Rows) capability and
+a number @code{nb} which describes how many bytes deep the
+printing band is (if omitted @code{nb} defaults to 1). In this case,
+@code{BP} is used to describe which bits are turned on vertically
+rather than horizontally but everything is otherwise the same as for
+the simple case.
+
+As an example, consider the HP laserjet. You'd specify it as
+@code{DEVICE laserjet}, and its Unix graphcap entry reads:
+@example
+laserjet|HP laserjet (high resolution):\
+        :DV=raster:xr#1280:yr#640:CW=^[*rB:OW=^[*r1280^[*rA:BR=^[*b160W:\
+        :OF=hp_XXXXXX:\
+        :SY=/usr/local/sm/rasterise -r $0 $F - > /dev/hp&:
+@end example
+On opening the device, it gets the string @code{^[*r1280^[*rA},
+setting the resolution and raster mode. Then, at the beginning of each
+rastered line it gets @code{^[*b160W} specifying that 160 bytes
+are coming its way, then finally @code{^[*rB} to restore it to
+alpha mode. (It doesn't need to know which row it is on, so the @code{BR} string doesn't tell it, and the default @code{BP} and @code{EP} are fine).
+After the input file is read it is
+deleted, and the output file is sent to the standard output, whence it is
+redirected to the proper device, in this case directly rather than
+through a spooler.
+
+A more complex example is a printronix printer, which encodes 6 pixels
+in each byte, and requires that bit 7 be turned on. It also needs an escape
+sequence at the end of each line. The corresponding graphcap entry is
+@example
+printronix|DEC printronix printer:\
+        :DV=raster:xr#792:yr#792:CW=^L:OW=^L:BR=@:ER=^E^J:\
+        :BP=\001\002\004\010\020\040:EP=\100:\
+        :OF=pr_XXXXXX:\
+        :SY=(/usr/local/sm/rasterise -r $0 $F - | rsh wombat lpr)&:
+@end example
+@noindent
+We use @code{EP} to turn on the seventh bit everywhere, as required,
+and specify only 6 values for @code{BP}, so only 6 dots will be packed
+into each character. The @code{BR} entry is empty, and @code{ER} provides
+the needed escape sequences at ends of lines. In this case @code{SY} sends
+the plot over a network to machine @code{wombat}.
+
+@findex raster, adding new devices
+Some devices are not able to simply accept a string of bytes with an
+occasional escape sequence. For example, a versatec needs to have the
+bit order changed, or a simple screen plotter might want to write a
+@code{*} if a bit is set and a space otherwise. If this is the extent
+of your pathology, you can deal with it via the provided capabilities.
+(Fortunately adding a @code{*} onto a space makes a @code{*}, so you can
+use @code{:EP= :BP=*:} for the latter.)
+If you have a really bad device, it is possible to add new coded
+device drivers to @code{rasterise}.
+For the convenience of such devices there is a graphcap capability
+@code{RD} which specifies the name of a type of raster device. If
+@code{rasterise} recognises the device
+it it calls a different set of routines to deal with the rows of data.
+Otherwise it proceeds as discussed in the previous paragraph. This behaviour
+is similar to that of the @code{DEVICE} command in using stdgraph if it
+doesn't recognise a device name.
+
+If you find that you @emph{do} need to write routines for some device, don't
+be too disheartened. @code{Rasterise} will still do the book-keeping and
+rasterising for you, your work will be limited to a couple of output
+routines. If you need to know more, see the source for rasterise. The only
+time that I used this capability came about two years after rasterise was
+written, and was @code{RD=hex} which specifies that lines be written as
+hexadecimal numbers rather than as 8-bit characters (e.g. write the two
+characters @code{FF} instead
+of the single character `\377'). The line length is given as @code{ll}.
+@findex raster, writing data in hex
+@findex RD=hex
+
+@node Compiling, Graphcap Index, Raster, Graphcap
+@appendixsec Compiling Graphcap
+@findex graphcap, compiling
+(This section is really for someone maintaining SM.)
+Rather than have stdgraph read the graphcap every time that it opens a 
+devices, it is possible to compile the capabilities of the more popular
+devices into the executable. This is done by preparing an include file
+which initialises the appropriate arrays, using the programme `compile_g'
+in the main directory. After this file (called cacheg.dat) has been
+prepared, files depending on it must be recompiled and SM must
+be relinked. The use of compile_g is pretty much self-explanatory, you
+give it a list of the devices you want and it produces the cacheg.dat file.
+Problems arise, however, if you don't have a valid cacheg.dat file, as then
+you can't compile compile_g in the first case. Fortunately, it is possible
+to bootstrap a cacheg.dat file (by defining BOOTSTRAP to the C-preprocessor),
+and proceed from there.
+
+When stdgraph attempts to use the compiled capabilities, it checks that the 
+current graphcap file has exactly the same name as the one that cacheg.dat
+was compiled
+from, if it isn't then it reads the graphcap file anyway. This provides
+a mechanism for those without C compilers to change the graphcap entries of
+pre-compiled devices. If you have a list of graphcap files, the name
+of the first is checked against the name in the @file{cacheg.dat} file.
+
+@page				@c this is needed so that the @printindex
+				@c doesn't throw away a chunk of text
+@node Graphcap Index, , Compiling, Graphcap
+@appendixsec Index to Graphcap Capabilities
+@findex graphcap, index
+
+@printindex tp

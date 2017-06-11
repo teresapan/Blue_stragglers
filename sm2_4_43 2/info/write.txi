@@ -1,0 +1,30 @@
+@node Write, Xlabel, Window, Commands
+
+@iftex
+@syntax Write.
+@end iftex
+@example
+Syntax: WRITE @r{STANDARD} string
+        WRITE [+] WORD string
+        WRITE @r{HISTORY} WORD
+@end example
+@pindex Write
+@findex plot macros, writing to history list
+
+WRITE STANDARD writes a string, followed by a newline,
+to the standard output. The string is taken to be the rest
+of the line up to a carriage return (which may be written explicitly as \n).
+The macro @code{echo} is usually used as an abbreviation for this command.
+WRITE @code{WORD} is similar, except that the string is written to file
+@code{WORD}.
+If the filename is the same as the previous WRITE, or if you preface the
+filename with a @kbd{+}, the string is
+appended, otherwise the file is overwritten.
+@findex write, to a file
+@findex write, to the terminal
+@findex strings, printing formatted
+
+WRITE HISTORY @code{WORD}, writes macro @code{WORD} onto
+the end of the history list.
+
+For MACRO WRITE, see under macros.

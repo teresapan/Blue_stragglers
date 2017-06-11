@@ -1,0 +1,14 @@
+@node And, Angle, Abort, Commands
+
+@iftex
+@syntax And.
+@end iftex
+@example
+Syntax: AND
+@end example
+@pindex And
+@findex logical and
+
+In a scalar context, you can use AND instead of @code{&&}.  The difference
+is that AND doesn't evaluate the right-hand-side of the expression if
+the left-hand-side is false; @xref{If}, for examples.

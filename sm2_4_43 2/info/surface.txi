@@ -1,0 +1,78 @@
+@node Surface, Table, Strings, Commands
+
+@iftex
+@syntax Surface.
+@end iftex
+@pindex Surface
+@example
+Syntax: SURFACE type z1 z2
+or      SURFACE type z1 z2 @r{WORD WORD}
+@end example
+
+   Draw a wire-frame surface of the current @code{IMAGE} from the point
+defined by @code{VIEWPOINT}. If the WORDs
+are omitted a line in the surface will be drawn for each row and column
+of the image; if the WORDs are present they will be taken to be the
+@code{x}- and @code{y}- coordinates of the desired lines, and SM will
+interpolate in the image to determine
+the corresponding values (see also the hundreds digit of type, below).
+
+The command @code{VIEWPOINT} specifies the position of the observer
+and the type of projection used (@pxref{Viewpoint}).
+
+   The last digit of TYPE is used to determine which surface to draw:
+@example
+        0       no hidden line removal
+        1       draw top surface
+        2       draw bottom surface
+        3       draw both top and bottom surfaces
+@end example
+
+If @code{type}'s tens digit is set, @code{SURFACE} will use the current
+limits (as set with @code{LIMITS}) rather than autoscaling them from the
+data.
+
+If @code{type}'s hundreds digit is set, the two @code{WORD}s are taken to
+be the @code{x}- and @code{y}- coordinates corresponding to the rows and
+columns of the IMAGE, but no interpolation is done. For example, after
+@example
+IMAGE (11,11)
+SET ix=0,10
+set xs=0,10,2
+do y=0,10 @{
+   SET IMAGE(ix,$y) = cos(0.2*ix)*sin(0.4*$y)
+@}
+VIEWPOINT 30 -10 -1
+SURFACE 3 -1.1 1.1 xs xs
+@end example
+@noindent
+will draw a 2-sided surface, drawing 21 lines in each direction on
+the surface. If, on the other hand, the data were really only known on
+at irregular set of @code{x}- and @code{y}-values, you could say something
+like
+@example
+IMAGE (11,11)
+SET ix=0,10
+SET x = @{ 0 1.3 2.4 3 4 4.5 4.6 6.7 8.2 9.6 10 @}
+SET y = @{ 0 0.4 0.9 1.2 2.718 3.14 4.2 5.4 6.667 9.1 10 @}
+do i=0,10 @{
+   SET IMAGE(ix,$i) = cos(0.2*x)*sin(0.4*y[$i])
+@}
+CTYPE cyan
+SURFACE 103 -1.1 1.1 x y
+CTYPE default
+@end example
+@noindent
+to draw the same surface.
+
+If TYPE's thousands digit is set, the surface is @emph{not} clipped to
+the z-axis limits @code{z1} and @code{z2}.
+
+@code{z1} and @code{z2} are the limits used for the z-axis;
+you might want to set them with @code{MINMAX}. The surface drawn will
+be truncated at @code{z1} and @code{z2} unless you are using an
+axonometric projection (@pxref{Viewpoint}).
+
+There are some useful macros in the file @file{surfaces}; say
+@code{load surfaces} to read them. If VERBOSE is one or more, a helpful
+header will be printed when you load the file.

@@ -1,0 +1,1633 @@
+\input texinfo  @c -*-texinfo-*-
+@tex
+\input defs
+@end tex
+@c %**start of header
+@setfilename notes
+@settitle Release Notes
+@c %**end of header
+
+@c
+@c Un-comment this if you want A4 output
+@c
+@c @afourpaper
+
+@node Top, , , (dir)
+@chapter SM's Release Notes
+
+This is the fifth-and-a-half distribution of SM@footnote{Why is it
+called SM? There is a package called Mongo with a
+similar command syntax that is in common use in Astronomy departments
+around the US. Mongo was used as a model for SM, and that's where
+the `M' came from.}, 
+but it might still have a few problems.
+As usual, the authors are actively using 
+SM and it is pretty reliable. (If you don't agree send mail! You
+may be able to do this with the @code{gripe} command).
+
+These Release Notes should include all the changes to SM since version 1.2,
+but do not detail all of the bug fixes.
+
+@menu
+* Release 1.2::			Changes Prior to Version 1.2
+* Release 2.0::			Changes from Version 1.2 to Version 2.0
+* Change 2.1::			Inconsistent Changes from V2.0 to V2.1
+* Release 2.1::			Release 2.1
+* Release 2.2::			Release 2.2.0
+* Release 2.3::			Release 2.3.0/2.3.1
+* Release 2.4:: 		Release 2.4
+* Release 2.4.1:: 		Release 2.4.1
+* Release 2.4.2:: 		Release 2.4.2
+* Release 2.4.3:: 		Release 2.4.3
+* Release 2.4.4:: 		Release 2.4.4
+* Release 2.4.5:: 		Release 2.4.5
+* Release 2.4.6:: 		Release 2.4.6
+* Release 2.4.7:: 		Release 2.4.7
+* Release 2.4.8:: 		Release 2.4.8
+* Release 2.4.20:: 		Release 2.4.20
+* Release 2.4.23:: 		Release 2.4.23 -- 2.4.27
+* Release 2.4.28:: 		Release 2.4.28 -- 2.3.29
+* Release 2.4.30:: 		Release 2.4.30 -- 2.4.32
+* Release 2.4.33:: 		Release 2.4.33+
+* Change 2.4::			Inconsistent Changes from V2.3 to V2.4
+* Change ??::   		Inconsistent Changes after V2.4.0
+@end menu
+
+@node Release 1.2, Release 2.0, , Top
+@unnumbered Changes Prior to Version 1.2
+
+@table @bullet
+@item
+Changes to @code{BOX} to write labels correctly. Two separate problems
+fixed (@code{LIMITS -5 5 0 0.2 TICKSIZE -1 0 0 0 BOX} should now work).
+@item
+A fix to stop x-axes having jiggles on some devices.
+@item
+Miscellaneous changes to the imagen driver.
+@item
+Changes to stdgraph support a new postscript entry.
+@item
+A new postscript graphcap entry, which should produce smaller files.
+@item
+Support for coloured lines, in drivers and graphcap.
+@item
+A Sunwindows driver, @code{dev sunwindows}, used with gfxtool.
+@item
+An additional variable syntax, @code{DEFINE name |}, to allow
+access to SM internal variables like @code{expand}.
+@item
+Restrictions on the length of macros that can be edited have
+been removed. In addition, the editor now starts on the first line of
+macros (not the header line). The history buffer is still 80 lines long.
+@item
+A new edit character @key{control-Q} to quote the next character.
+@item
+An interface to fortran, and documentation of the C calls that
+SM uses, to allow programmes to link to the SM libraries.
+@item
+An option to specify the number of lines on  your terminal in the
+@code{TERMTYPE} command.
+@item
+A change to the default @code{LOCATION}, the better to fit x-axis
+labels.
+@item
+A shell escape (pass a command to the operating system), and a
+change directory command (@key{!} and @code{CHDIR}).
+@item
+A table of contents and index to the manual.
+@end table
+
+@node Release 2.0, Change 2.1, Release 1.2, Top
+@unnumbered Changes from Version 1.2 to Version 2.0
+
+@table @bullet
+@item
+Fixed unix version of SM to accept redirected input.
+Who knows for VMS?
+@item
+Command line is read differently. The old
+behaviour (read one argument, treat it as a macro file, read
+macro file, strip path/suffix and attempt to execute) is
+preserved as the -m option. Otherwise, simply execute
+command line after the startup macro
+@item
+Added logfile option to command line (-l logfile),
+mostly for debugging
+@item
+Allowed @code{FOREACH var @{ list1 @} @{ list2 @}}, to allow keywords to
+appear in @code{list1}
+@item
+Fixed Interrupt handler to return control to user if requested
+@item
+Made spaces (and tabs) within quotes non-special, so they can
+appear as parts of single words
+@item
+New utility get_grammar written in C to extract grammar from
+yacc files
+@item
+Added support for @code{~} in @code{CHDIR}
+@item
+Made default verbosity 1 not 0
+@item
+Made @code{PRINT} page if printing to terminal
+@item
+The header lines written by @code{PRINT} now start with a #, so
+they can be read without using the @code{LINES} command
+@item
+Added commands @code{SAVE} and @code{RESTORE}
+to save and restore a complete session
+@item
+Replaced @code{SHOW} by a macro
+@item
+Fixed @code{READ OLD} to change @code{ERRORBAR} and @code{WINDOW}
+to new formats
+@item
+Allowed the use of \ to continue long lines
+@item
+Columns of data may now be separated by commas as well as white space
+@item
+Removed all restrictions on the number of columns in a data file
+@item
+@code{HELP} gives the values of variables and vectors, as well as macros
+@item
+In the unlikely event of SM detecting an internal error (e.g. a
+segmentation violation) a @code{SAVE} file called @file{panic.dmp} is now
+written to your current temporary directory
+@item
+Strings in double quotes are now treated as words (e.g. @code{``2.80 ``}, note space following @code{0})
+@item
+@code{TERMCAP} variable is treated as the actual termcap
+@item
+Added explicit copyright statements to the code, to clarify
+its status as not being public domain, but the property of its authors
+@item
+Added @code{WHATIS} builtin function, to determine type of a string
+@item
+Added @code{OVERLOAD} to allow overloading of keywords,
+also added 
+@code{set_overload} macro to set some of them up. ``compatible'' also
+makes use of this facility to redefine commands such as @code{points}
+@item
+Made @code{do i=1,10 @{ if($?$i) @{ ... @} @}} as expected
+@item
+Allowed @TeX{}-style labels (if @code{$TeX_strings} is defined)
+@item
+Allowed points (of specified angle and ptype) and lines (of
+specified ltype) to appear in strings, if you are using @TeX{} labels
+@item
+Allowed you to declare an error handling macro (called
+@code{error_handler}) that is called after @key{control-C} interrupts
+@item
+@code{RESTORE} can be used to read history files
+@item
+You can now specify lists of file/graph/termcap files to be
+searched in order, allowing private modifications
+string if it can't be opened as a file
+
+@noindent Changes to do with history and the editor:
+@item
+Made @code{TERMTYPE} with a negative number of lines turn off
+cursor motion
+@item
+Changed default bindings to make ESC-q quote_next (in addition
+to @key{control-Q}), and @key{control-@}} an emergency @key{control-M}
+@item
+Changed editor to use termcap
+@item
+Changed editor to follow columns past a blank line 
+@item
+Made history ignore consecutive identical commands
+@item
+You can now repeat a search to look for a command further back
+in the history list (use ^TAB)
+@item
+Changed paging of history list to allow you to search (use ?
+while paging to find out how)
+@item
+Changed terminal read routine, so @key{control-S}/@key{control-Q} and typeahead
+should now work at least under Unix.
+(@`A la unix: characters appear as you type. Refresh the screen
+(@key{control-L}) if it gets scribbled on)
+@item
+The history system was deleting commands when the difference
+between the top and bottom numbers in use exceeded 80, rather
+than when there were more than 80 commands on the buffer. 
+Fixed this, and took the opportunity to take the
+size of the history buffer from the @file{.sm} variable `history'
+(default : 80)
+@item
+Added command @code{HISTORY -} to list history in backwards order
+@item
+allowed you to move deleted words from line to line
+(@key{control-[}h/@key{control-[}u etc.) 
+@item
+made a @code{TERMCAP} environment (logical) variable override a
+termcap in @file{.sm} 
+@item
+Renumbered lines with every @code{HISTORY} command. Insert
+should now work
+@item
+ESC-y will successively restore recently deleted lines, up to a
+current limit of 5.
+
+@noindent Changes to do with macros:
+@item
+Macros beginning ## are not listed if @code{VERBOSE} is 0. 
+@item
+Added command @code{RETURN} to return from a macro, or to the prompt
+if encountered outside a macro.	(Useful when fiddling with
+command scripts)
+@item
+We now document that lines beginning # in macro files are comments,
+and are output for verbose > 0. Lines beginning # in data files
+now also comments, printed for verbose > 1, lines starting
+! are always printed.
+Note also that lines ending \ are logically continued to next line in
+data files, as well as to the command language.
+@item
+Macros may be declared to have variable numbers of arguments
+@item
+When editing macros, @key{RET} in the middle of a line
+splits the line at that point. The behaviour of the history editor is
+unchanged. We now delete blank lines as we go, so typing many
+@key{RET}'s will just get the 1 line, and it'll go away if you
+@key{control-P} or @key{control-N} without typing something
+@item
+If a macro has a -ve number of args in @code{MACRO EDIT}, it is deleted
+@item
+If @code{VERBOSE} is 3 only trace macros as they are executed,
+@code{VERBOSE} 4 is the full trace
+@item
+Added command @code{KEY} to define keyboard macros. The keys PF1
+- PF4 may be specified in a terminal independent way.
+@item
+Allowed you to redefine macro arguments inside macros, including
+ones that weren't declared. This allows you to use numbered
+variables as temporaries.
+@item
+Allowed @code{MACRO name @{ DELETE @}} to delete macros with an
+uppercase ``DELETE''
+@item
+Empty macros are deleted upon leaving the macro editor
+
+@noindent Changes to do with variables:
+@item
+Added more macros to utils, for instance @code{arrow}, @code{wilcoxon}, and @code{smirnov}
+@item
+Changed @code{DEFINE var ?} to allow prompt string
+The value of the variable now consists of the complete line typed,
+rather than just one word. You are now offered as a default value the
+old value, if it is defined
+@item
+Added @code{uxp} and @code{uyp} for user plot position to @code{DEFINE var |} rule. 
+@item
+Made variable names being defined appear on error traces
+@item
+Added variable $date with value of the current date and time
+@item
+Allowed you to redefine macro arguments inside macros, including
+ones that weren't declared. This allows you to use numbered
+variables as temporaries.
+
+@noindent Changes to do with vectors:
+@item
+allowed < @dots{} > as well as @{ @dots{} @} for @code{PRINT} and
+@code{SORT}
+@item
+Added @code{SET DIMEN(WORD) = expr} to declare @code{WORD}, and
+initialise it to zero. Also a macro @code{declare} to do this for you
+@item
+@code{@{ list @}} is now an expression
+@item
+Allowed @code{READ < list >} as well as @code{READ @{ list @}}
+@item
+Changed verbosity in vector arithmetic to report first error
+in a call for @code{VERBOSE} > 0, but only report further errors
+for @code{VERBOSE} > 1
+@item
+Added new operator @code{INT(expr)} to take integral part of an
+expression, can be used for rounding.
+@item
+Changed precedence of @code{CONCAT} to just below @file{+} and @file{-}
+@item
+allowed < list > as an expression
+@item
+Allowed v1 and v2 to both be scalars in ?: statement
+@end table
+
+@center Changes to how plotting is done are as follows:
+@table @bullet
+@item
+Stopped SM changing between graph and alpha modes so often,
+flashing the screen
+@item
+Changed behaviour of @code{CTYPE} commands, and treatment of
+colour in graphcap. It is now possible to specify a private set of colours
+for use in drawing lines
+@item
+Added support for plotting to terminals other than the one that your are
+logged onto
+@item
+Changes to prevent plotting at above device resolution
+@item
+Added command @code{PTYPE @{ list @}} to plot
+a user defined symbol at points
+@item
+Wherever the name of a vector is expected you can now use an
+expression in parentheses
+@item
+Added support for aspect ratios in drawing characters
+@item
+Allowed @code{DRAW ( num num )} by analogy to @code{RELOCATE ( num, num )}
+@item
+Fixed @code{ERRORBAR} to accept scalars for size of errors
+@item
+Redefined @code{IDENTIFICATION} as a macro
+@item
+Added @code{ILABEL} 3 to @code{BOX}, to omit both ticks and
+labels, useful in conjunction with @code{AXIS}
+@item
+Added test in @code{BOX} for arguments to logarithmic axes out of range
+@item
+If @code{ANGLE} is non-zero, it is used for @code{XLABEL} and
+@code{YLABEL} (e.g. @code{ANGLE 360 YLABEL N})
+@item
+Added axis(), curs(), gflush(), plotsym(), and shade() to interface.c
+@item
+Changed ticksize in interface.c to take real arguments, not integer
+@item
+@code{WINDOW} now ignores initial value of location and attempts to fill
+(almost) entire screen with little windows
+@item
+@code{WINDOW} can be used to draw boxes that touch
+@item
+Changed playback to allow you to optionally specify the line or
+range of lines to be played back, and similar changes to hcopy.
+@item
+If the two limits given for an axis in the @code{LIMITS} command
+are the same, the limits for that axis are not changed.
+@item
+When using the @code{RANGE} command, @code{LIMITS} now attempts to
+centre the axes on the median of the data.
+@item
+Can now shade inside a region, or shade a histogram (see SHADE).
+@item
+Changed fonts somewhat. Old characters in old order available
+as old_fonts.bin (in @file{.sm} file), added Old English font (\o),
+changing font sizes inside strings (\digit), and a number of new characters.
+@item
+Modified filecap to understand FITS data files for contouring.
+@item
+In a label, (e.g. PUTLABEL), @@\ is printed as a real \.
+@item
+Added @code{ASPECT} command, to allow you to override SM's
+choice of aspect ratio (e.g. to position labels for a plot that will
+finally appear on a laser printer)
+@item
+Fixed @code{WINDOW} to allow boxes to touch. The macros @code{wind} and @code{bo} take touching into account when labelling axes. 
+@item
+made histograms draw `flanges' at ends (as had been done historically)
+
+@noindent Changes to stdgraph:
+@item
+Changed stdgraph to accept @code{%T} for 12-bit encoded Tektronix
+(Also changed graphcap to reflect this: @code{xr, yr, XY, TB, SC})
+@item
+Removed RT capability from graphcap, and changed stdgraph to
+use @code{ch} and @code{cw} (the height and width of the hardware characters)
+@item
+Added DT to graphcap to deal with funny requirements of devices
+@item
+added support for raster devices (e.g. printronix). These
+actually use a combination of graphcap and a stand-alone rasteriser
+@item
+Added support for area fill in graphcap for @code{PTYPE n 3}
+
+@noindent Changes to drivers
+@item
+The postscript drivers are now available landscape, postscript,
+or square (and work over a network for Unix users)
+@item
+The sunwindows driver now supports a cursor
+@item
+@key{control-C} interrupts now work even if you are using sunwindows
+@item
+Mouse buttons work with the X10 cursor
+@item
+There is a new SunView driver (device sunview) that creates its
+own graphics window.
+
+@noindent Bug fixes: (only the ones most visible to users are noted)
+@item
+Fixed bug with @code{PTYPE n 3} for angle != 0
+@item
+Fixed bug in @code{CONTOUR}, to do with 2 lines in one plot cell;
+previously always assumed lines SW-NE
+@item
+Fixed bug in @code{CONTOUR}, that could lose
+last row/column of contour plot
+@item
+Fixed occasional bad axis labels
+@item
+Fixed rounding error in drawing ticks
+@item
+Fixed contouring fortran files
+@item
+Fixed precedences of logical and and or
+@item
+Fixed bug in @code{CONTOUR} to do with point at (or beyond) right
+hand size of image
+@item
+Miscellaneous postscript problems fixed
+@end table
+
+@node Change 2.1, Release 2.1, Release 2.0, Top
+@unnumbered Real, Inconsistent, Changes from V2.0 to V2.1
+
+@table @bullet
+@item
+The programme's name has been changed to SM,
+that the default directory name is now @file{sm}, and that the @file{.smongo} file is now called @file{.sm}.
+
+@item
+Typing `make install' now installs the macro and help libraries. The
+destinations of some files is now different -- see the main Makefile
+for details.
+
+@item
+The compiled graphcap entry format has been changed (fixed);
+you must rerun @file{compile_g}.
+
+@item
+The command SET @code{name = macro(vector)} has been changed.
+Previously only one argument was
+permitted, but it could be an expression, and the result was returned
+by assigning to @code{$1} in a rather confusing way. Now many arguments
+are permitted (but they can't be expressions), and the result is
+returned as @code{$0}. See SET in the manual for more details.
+
+@item
+the SET DIMEN(@code{vec}) = expr statement has been altered, so
+the right-hand expression must be a number (with an optional suffix to
+denote a string-valued vector).
+
+@item
+The way you specify limits for logarithmic axes to AXIS is now
+consistent with the way you specify them to BOX.
+
+@item
+The 8th bit of graphcap entries is no longer stripped. To
+include an ascii null (@code{\000}) in an entry specify @code{\377},
+a @code{\377} may be written @code{\377\377}.
+
+@item
+You must now include the library utils.a in addition to plotsub.a
+and devices.a when linking to SM as a graphics library.
+@end table
+
+@node Release 2.1, Release 2.2, Change 2.1, Top
+@unnumbered Changes from Version 2.0 to Version 2.1
+
+Note that the programme's name has been changed to SM,
+that the default directory name is now @file{sm}, and that the
+@file{.smongo} file is now called @file{.sm}.
+
+Changes to do with making SM:
+@table @bullet
+@item
+Compilation options are now in a file src/options.h rather than
+in the Makefiles.
+@item
+The compiled graphcap entry format has been changed;
+you must rerun @file{compile_g}.
+@end table
+
+Changes to do with history and the editor:
+@table @bullet
+@item
+Syntax errors now report the macro in which they occur. Beware that this
+may be incorrect, if the macro has already been fully scanned.
+@item
+If VERBOSE is 1 or more, report the line that arithmetical errors
+occur on (e.g. mismatched dimensions, lg(0)).
+@item
+You can now choose your history character (default: ^). This
+may be useful for @TeX{} strings, I use `.
+@item
+You can go to the start or end of a macro/the history list
+with ESC-< and ESC->. Use ESC-g to go to a line number.
+@item
+You can no longer type a space after the history character to
+insert it into a line -- use quote_next instead (e.g. @code{ESCq^}).
+@item
+Lines starting with a # in READ EDIT files are comments
+@item
+In @file{.sm} files comments run from a # to the end of the line.
+@item
+The various DELETE HISTORY commands now have siblings that omit
+the HISTORY and do @emph{not} themselves appear on the history list.
+@item
+The way that DO, FOREACH, IF, and MACRO command lists are
+treated has been fixed. If VERBOSE is 5 or more such lists will be
+printed as they are scanned.
+@end table
+
+Changes to do with macros:
+@table @bullet
+@item
+The command APROPOS lists all macros whose names or initial
+comments match a given pattern.
+@end table
+
+Changes to do with variables:
+@table @bullet
+@item
+Variables given in <> or @{@} are no longer tokenised, so spaces will
+no longer appear in funny places.
+@end table
+
+Changes to do with vectors:
+@table @bullet
+@item
+You can now specify a printf-style format string to PRINT
+@item
+@emph{The command SET @code{name = macro(vector)} has been changed.}
+Previously only one argument was
+permitted, but it could be an expression, and the result was returned
+by assigning to @code{$1} in a rather confusing way. Now many arguments
+are permitted (but they can't be expressions), and the result is
+returned as @code{$0}. See SET in the manual for more details.
+@item
+It's possible to FFT vectors (actually pairs of vectors for the real
+and complex parts).
+@item
+String valued vectors have been added to SM. They may
+be read from files (either by the row or by the column), printed,
+assigned to, tested for (in-)equality, and used to set the PTYPE. In
+the latter case the strings are used to label the points.
+@item
+the SET DIMEN(@code{vec}) = expr statement has been altered, so
+the right-hand expression must be a number (with an optional suffix to
+denote a string-valued vector).
+@item
+You can now define variables from IMAGE files (currently only
+supported for FITS), using DEFINE variable IMAGE
+@item
+The expression @code{vector[expr]} has been generalised to
+allow @code{expr} to be a vector, so the result is now a vector
+of the same dimension as @code{expr}.
+@item
+You can convert an expression into a string using @code{STRING(expr)}.
+@item
+It is now possible to specify that IMAGE files have no header,
+in which case you'll be prompted for the values of  nx and ny (file_type
+no_header).
+@end table
+
+Changes to how plotting is done are as follows:
+@table @bullet
+@item
+The values of @code{TICKSIZE} now make a difference for logarithmic axes.
+@item
+The way you specify limits for logarithmic axes to AXIS is now
+consistent with the way you specify them to BOX. @emph{This Is A Change!}
+@item
+GRID now takes an optional second argument, specifying only an
+x or y grid 
+@item
+LTYPE ERASE allows you to erase some lines in a plot without erasing
+everything. This is only supported by some devices
+@item
+ANGLE and EXPAND can now be given as vectors, to specify
+different angles and expansions for each point plotted
+@item
+DOT will now work with user-defined ptypes
+@item
+You can specify a PTYPE of a vector of strings.
+@item
+The order of the default CTYPEs has been changed; you can now restore
+the default using the macro @code{reset_ctype}.
+@end table
+
+Changes to labels:
+@table @bullet
+@item
+@TeX{} strings now makes @code{A_a^b} put both sub- and super-
+scripts on the same symbol (use @code{A_a@{@}^b} if that isn't what
+you want)
+@item
+A new bold (over-struck) @code{\bf} font is available.
+@item
+If you define the variable @code{default_font} it will be used
+as your default font for labels (including for axes). You can define
+it in your @file{.sm} file if you so desire.
+@item
+The position of the symbol for the constellation Taurus has
+been moved; this will not affect TeX_strings users. An Old English
+full stop is now a full stop.
+@item
+`@TeX{} definitions' are now specified in a file (and put into
+fonts.bin). This will not affect users, but does allow a SM
+administrator to add new definitions.
+@item
+You can use @code{\def} to define your own @TeX{} definitions.
+@item
+You can specify more than 9 sides in @TeX{} `point' or `apoint'
+@item
+The `@TeX{}' commands @code{\raise} and @code{\kern} are now
+available to move parts of strings about.
+@item
+@TeX{}-labels can now be put into variables without difficulty.
+@end table
+
+Changes to stdgraph:
+@table @bullet
+@item
+A new encoder command @code{`str`} prompts you, then reads
+a character from the keyboard.
+@item
+You can specify graphcap entries (or parts of graphcap
+entries) on the command line.
+@item
+The 8th bit of graphcap entries is no longer stripped. To
+include an ascii null (@code{\000}) in an entry specify @code{\377}, a @code{\377} may be written @code{\377\377}.
+@end table
+
+Changes to drivers
+@table @bullet
+@item
+You can now specify options like @code{-Ws} to the sunview driver,
+use @code{-WH} for a list.
+@item
+There is a new driver for a Unix-PC.
+@item
+There is a new X11 driver (try DEVICE x11 -help for a list of options).
+@item
+If you write your own drivers, the declarations of some functions
+have been changed to return void.
+@end table
+
+Changes to Callable SM
+@table @bullet
+@item
+You must now include the library utils.a in addition to plotsub.a
+and devices.a when linking to SM as a graphics library.
+@item
+The library names have been changed by pre-pending a `lib', so
+you can now say either `libdevices.a' or `-ldevices'. This allows the
+-L option to ld to work (under Unix).
+@item
+If you compiled SM with an ANSI compiler, you should include the
+file @code{"sm_declare.h"} at the top of any C code that calls SM functions.
+@end table
+
+Bug fixes: (only the ones most visible to users are noted)
+@table @bullet
+@item
+You can now define arbitrarily big vectors with the cursor.
+@item
+LOCATION now works with non-touching WINDOWs.
+@end table
+
+@node Release 2.2, Release 2.3, Release 2.1, Top
+@unnumbered Changes from Version 2.1 to Version 2.2
+
+Changes to do with making SM:
+@table @bullet
+@item
+Typing `make install' now installs the macro and help libraries. The
+destinations of some files is now different -- see the main Makefile
+for details.
+@item
+There is now a search path for @file{.sm} files; you may want to prepare
+a system-wide one (see @code{SMPATH} in the manual).
+@end table
+
+Changes to do invoking SM
+@table @bullet
+@item
+SM now searches a path looking for .sm files; you can override
+this by setting the @code{SMPATH} environment (VMS: logical) variable.
+@item
+The command line option @code{-u name} makes SM treat `~' as @code{name}'s
+home directory when looking for @file{.sm} files.
+@item
+There is a new command line option @code{-h} to print a help message.
+@item
+SM now supports a search path for help files.
+@end table
+
+Changes to do with .sm files:
+@table @bullet
+@item
+Entries in .sm files with `@@' in the first column mean that
+the entry isn't present, and that SM shouldn't search the rest of the path.
+@item
+Entries in .sm files with `+' in the first column direct SM to keep
+looking for more entries, whose values are concatenated with this one.
+@end table
+
+Changes to do with history and the editor:
+@table @bullet
+@item
+There is now a macro @code{input_new} analogous to the Mongo ``input''
+command, but reading a file of SM commands. Not recommended.
+@item
+There are two new commands @key{control-R} and @key{control-S} (or @code{ESC-s}) to do
+searches in macros or history. The use of @code{^-TAB}
+is no longer supported.
+@item
+There is a new command @code{ESC-@key{control-D}} to delete the current
+line; this includes deleting it from the history list.
+@item
+If you set the variable @code{remember_history_line} the history
+editor will remember where you are in the history list, so a @key{control-P} will
+get the command before the last one that you retrieved.
+@item
+Negative history numbers are now taken relative to the current command,
+so -1 is the previous command.
+@item
+APROPOS will (on most systems) search the help files as well as
+the macro headers.
+@item
+When reading from a file (or a pipe) SM will behave as if you gave
+the @code{-S} option.
+@item
+Key bindings may now contain ASCII NUL's.
+@item
+Shell escapes (with !) now look for a variable @code{$SHELL} to decide
+which shell to use; the Bourne shell is still the default. They also now
+reset terminal modes before the shell command, and set them after.
+@item
+There is a new variable @code{exit_status} which is the return code
+from a shell escape.
+@item
+You can now use @key{control-V} and @code{ESC-v} to move around the history list
+as well as within macros.
+@end table
+
+Changes to do with files:
+@table @bullet
+@item
+If you define the variable @code{noclobber} (maybe in your @file{.sm} file)
+MACRO WRITE and PRINT won't overwrite existing files.
+@end table
+
+Changes to do with macros:
+@table @bullet
+@item
+If a macro is declared to have 100 or more arguments the last
+argument will extend to the end of the line.
+@item
+Tabs in macro definitions are now expanded to spaces when read; you
+can set the tab width with the @file{.sm} variable @code{tabsize}.
+@item
+Macros used as functions can now be used in expressions.
+@item
+In a file of macros, lines starting @code{##} are only printed if
+VERBOSE is two or more.
+@end table
+
+Changes to do with variables:
+@table @bullet
+@item
+If a ``DEFINE @code{var} :'' fails, if @code{var} is capitalised
+SM will now look for it from the environment.
+@item
+The way that `internal' variables (those defined as
+DEFINE name |) work is changed. If you @emph{don't} define them they
+will always have the correct value --- see the section on DEFINE for
+further explanation.
+@item
+You can get at the size of an image with DEFINE NX IMAGE and
+DEFINE NY IMAGE (note that NX and NY are capitalised).
+@item
+There are two new `internal' variables @code{$nx} and @code{$ny}
+which give the current size of the screen in hardware-specific units such
+as pixels or dots, and @code{$cheight} and @code{$cwidth} which
+give the current (average) size of a character in plot units.
+@item
+There is a new special form of variable expansion @code{$(expr)} which
+expands to the result of @code{expr} (taken to be a scalar).
+@end table
+
+Changes to do with vectors:
+@table @bullet
+@item
+You can now specify names for user ctypes, e.g. CTYPE=@{ puce khaki
+vermillion @}.
+@item
+You can make the PRINT command append to the output file, rather
+than simply overwriting it.
+@item
+In response to overwhelming public pressure, an element of a vector
+may once more be specified wherever a number is allowed (e.g. in a
+RELOCATE command).
+@item
+You can now write a number as @code{1.234d56} if you must.
+@item
+There is a new operator ATAN2 that takes two arguments and returns
+an answer in the correct quadrant.
+@item
+STRING will now (by default) produce nicely formatted strings,
+similar to those used to label axes.
+@item
+You can now declare an image (with @code{IMAGE (nx, ny)}), and fill it
+with @code{SET IMAGE(x,y) = z}.
+@item
+There are some more string operators, similar to those in
+the new Unix @code{awk}, INDEX, SPRINTF, STRLEN, and SUBSTR.
+@item
+You can determine how long a string is (in device coordinates) with LENGTH.
+@item
+You can specify your own format statement for SM to read lines of
+data with: @code{READ 'format' @{ vectors @}}.
+@end table
+
+Changes to how plotting is done are as follows:
+@table @bullet
+@item
+The hcopy and hmacro macros will now work even if the printer name
+is omitted (using the value of PRINTER from @file{.sm} or the
+environment instead). 
+@item
+`Dotted' lines (ltype 1) are now really dotted, not short lines.
+@item
+You can now start a new page for hardcopy devices with the new
+command PAGE.
+@item
+The new command ABORT closes the current device without making a hardcopy.
+@end table
+
+Changes to labels:
+@table @bullet
+@item
+SM's ``@TeX{}'' macros can now take arguments
+@item
+There is a new pseudo-macro @code{\move} to move a group around,
+but leave the current position unchanged.
+@item
+There are new pseudo-macros @code{depth}, @code{height}, and
+@code{\width} to find the dimensions of a group.
+@item
+The height and depth information is used to place axis labels more
+intelligently. This will only work if you draw the axes before the
+axis labels, which seems not unreasonable.
+@item
+LABEL will now draw a string with its @code{baseline} at the starting
+point. If you want the old behaviour use @code{PUTLABEL 6}.
+@end table
+
+Changes to stdgraph:
+@table @bullet
+@item
+:RA: has been retired in favour of the much more general :DV=device:.
+@item
+The new :TC: entry is like :tc: but doesn't start scanning
+graphcap again. This can be used to modify standard entries.
+@item
+Comments are now permitted within graphcap entries.
+@item
+SY entries can now use @code{$"..."} to prompt the user
+for a string; the @code{$"..."} will be replaced by the reply.
+@item
+SY entries now support graphcap variables, so that you can say things like
+@example
+BIN = /usr/local/bin
+device|some device:\
+           @dots{}
+        :SY=$@{BIN@}/rasterise -r $0 $F $1:
+@end example
+
+@end table
+
+Changes to drivers:
+@table @bullet
+@item
+The imagen driver now supports portrait, landscape, and square plots.
+@item
+There is a new driver (@code{sgi}) for Silicon Graphics's
+Irises, which should also work on IBM's RS/6000.
+@end table
+
+Changes to Callable SM:
+@table @bullet
+@item
+The device call now returns 0 for success, -1 for failure.
+@item
+You can now compile SM to prefix external names with ``sm_''
+(or any other string of your choice).
+@item
+There is a new call @code{redraw} that should be used on window systems
+that need some help redrawing their windows (e.g. SGI's GL, or X11
+on machines like RS/6000 that don't support backing stores).
+@end table
+
+Changes to 2-D SM:
+@table @bullet
+@item
+If you specify @code{nx} or @code{ny} to be negative they will be
+taken to be the negation of the actual size of the image, rather than
+an offset in the file.
+@item
+If you specify @code{nx} or @code{ny} as @emph{string} values (e.g.
+@code{:nx=10:ny=100:} they are taken to be the actual size of the
+image (just like the previous item).
+@item
+You can get at the size of an image with DEFINE NX IMAGE and
+DEFINE NY IMAGE (note that NX and NY are capitalised).
+@item
+You can now declare an image (with @code{IMAGE (nx, ny)}), and fill it
+with @code{SET IMAGE(x,y) = z}.
+@item
+You can define any (2-letter) name in @code{filecap} and retrieve the
+value at the specified offset with DEFINE nn IMAGE.
+@item
+In FITS files, CRPIX, CRVAL, and CDELT are now interpreted correctly.
+@end table
+
+Bug fixes: (only the ones most visible to users are noted)
+@table @bullet
+@item
+The problems with calling SM routines have been fixed.
+@end table
+
+@node Release 2.3, Release 2.4, Release 2.2, Top
+@unnumbered Changes from Version 2.2.0 to Version 2.3.0
+
+@table @bullet
+@item
+When reading from a file (or a pipe) SM won't trap @key{control-c}
+@item
+Commands are now put on the history list even if you run with @code{-s}
+or @code{-S}.
+@item
+The history editor is now active when you have entered a partial
+command (e.g. @code{macro hello @{}). There is a different prompt, which
+you can change by defining @code{$prompt2}.
+@item
+The primary and secondary prompts can be set by specifying
+@code{prompt} or @code{prompt2} in your @file{.sm} file.
+@item
+In a graphcap SY string, if a positional parameter is called (e.g.)
+@code{$[3]} instead of @code{$3} there's no complaint if it is missing.
+@item
+You can now say @code{!expr} just like in C
+@item
+Two new `number' operators in @TeX{} strings, @code{\multiply}
+and @code{\divide}. Both multiply (or divide) by the argument/1000.
+@item
+You no longer need the parentheses in @code{vec[(1+2)]}. This might
+be thought of as a bug fix.
+@item
+A side effect of the previous item is that whereas @code{define v vec[0]}
+used to be accidently legal, you must now say @code{define v (vec[0])}.
+@item
+LWEIGHT is now a floating point number
+@item
+The graphcap encoder now has limited support for floating point
+numbers; specifically you can use `%e', `$f', or `%g' to format the
+bottom of the stack, and `|' to convert the bottom of the stack to int.
+@item
+New `|' variables @code{swidth}, @code{sheight}, and @code{sdepth}
+give the (pixel) size of the last string drawn.
+@item
+@code{PUTLABEL 0 str} doesn't draw anything, but does set the string
+dimensions (and any @TeX{} definitions are remembered).
+@item
+Commands that draw strings now leave the plot pointer on the baseline
+at the right of the last character drawn.
+@item
+You can give AXIS vectors of values where you want the small and big
+ticks, thereby finally relieving us of the need to make TICKSIZE infinitely
+complicated. You can even provide a string-valued vector to specify
+the labels that you want written.
+@item
+There are two new SM variables @code{x_gutter} and @code{y_gutter}
+that are used to modify the spacing between boxes left by the WINDOW command.
+@item
+You can now specify a font size along with a type in @code{default_font},
+e.g. @code{\ti\bf\it\2}.
+@item
+WRITE can now append to a file by saying WRITE @code{+ filename}.
+@item
+SUM is now implemented using a double precision intermediate value.
+@item
+There is a new operator RANDOM to generate uniformly distributed
+random numbers. The seed can be set with SET RANDOM.
+@item
+Any combination of string- and arithmetic-vectors is now allowed in SORT.
+@item
+If you define @code{$save_read_ptr}, the current READ pointer is
+saved, allowing faster sequential access to a file.
+@item
+You can specify a range of columns to be used for reading
+numerical vectors.
+@item
+Macro files may contain left-justified comments within macros
+which are not included in the macro, but processed at read time.
+@item
+The hidden surface code (VIEWPOINT and SURFACE) now works. The C
+is based on a set of SM macros written by Gabor Toth.
+@item
+There are a set of SM macros for use with the new surface commands;
+say @code{load surfaces} if you want to use them.
+@item
+If the environment file specified by -f filename on the command
+line starts with a /, no search path is used. Note that this means
+that you can't inherit entries from other `.sm' files.
+@item
+Argument parsing for DEVICE commands
+now understands quotes, e.g. @code{DEVICE x11 -title \"Hello World\"}.
+@item
+You can now call the SM parser from your own code. There is also
+a function to declare your arrays to SM as vectors. Examples have been
+added to the @file{callable} directory.
+@item
+If VERBOSE is one or more, you'll be warned if the axis labels
+are expected to overlap the ticks (and a solution is suggested).
+@item
+If a macro isn't found, the macro @code{macro_error_handler}
+is called with 2 arguments; the first is @code{NOT_FOUND} and the
+second the name of the macro. If the variable @code{missing_macro_continue}
+is defined (maybe in your @file{.sm} file) the behaviour is unaltered.
+@item
+There is a new command USER ABORT that forces SM to think
+that a syntax error has occurred.
+@item
+If you retrieve that last history command with @code{^$} or @code{^^}
+you will always get the @emph{last} command, even if it doesn't appear on
+the history list; using the arrow keys or @code{^P} still gets you the
+previous remembered command.
+@item
+There are macros to support greyscale plots (glevels and greylevel)
+@item
+The vms_var filecap entry has been changed, and so has
+the documentation on how
+to write out image files under VMS Fortran.  For variable recordtype files, you
+must specify @code{recordtype='variable'}, and not give a record length.  This
+seems to work for VMS 5.x, but Robert has only been reluctantly persuaded that
+my "bug fix" in this case is any more than sleight of hand, so you are free to
+complain vociferously (to monger@@mcmaster.ca) if this causes problems.
+@item
+SM now supports metafiles via the pseudo-device META and the command
+META READ file.
+@end table
+
+@node Release 2.4, Change 2.4, Release 2.3, Top
+@unnumbered Changes from Version 2.3.0 to Version 2.4
+
+@table @bullet
+@item
+(This one is actually a change for 2.3.0). You can no longer
+choose your own prefix for SM graphics calls.@footnote{Did you know
+that sun's fortran i/o package had a function called
+cursor in it? You see why we had to do this, I imagine. There are lots of
+functions in standard packages that have names that we use.}
+@item
+You can specify a pattern to restrict the output of the LIST DEVICE command.
+@item
+You can say IMAGE CURSOR WORD WORD WORD to get intensities into a vector.
+@item
+An argument of 4 to BOX stops that axis from being drawn.
+@item
+VERSION is now implemented as a macro, printing @code{$version}.
+@item
+The algorithm for choosing axis labels now checks that there is enough room
+for the labels that is has chosen and acts accordingly.
+@item
+Searches are now by default case @i{in}-sensitive. You can still use
+@code{$case-fold-search} to change this behaviour.
+@item
+You can specify @code{:tc=...:} or  @code{:TC=...:} as part of a DEVICE
+command.
+@item
+You can set the maximum size of string-valued vector elements in
+@file{options.h}.
+@item
+Removed restrictions on number of vectors in READ and PRINT commands.
+@item
+Added atof to convert string-valued vectors to arithmetic.
+@item
+LIST DEFINE | will list internal variables (such as $fx1).
+@item
+You can use READ ! to continue reading past lines that don't match what
+SM expects (either the wrong number or types of columns, or a mismatch
+with the format)
+@item
+There is a new format %n that returns the number of fields correctly matched
+in the line being READ.
+@item
+You can now specify the minimum and maximum number of arguments that
+a macro expects (but see the change notes (@pxref{Change 2.4}) for a
+slight inconsistency). Note that you cannot declare macros that expect
+zero --- n arguments with a @code{macro name nargs @{@dots{}@}} command.
+
+@item
+Most of the behaviour that is influenced by values in your @file{.sm} file
+will now look at a variable of the same name rather than the @file{.sm} file
+directly (they are defined from @file{.sm} when SM is started).
+
+@item
+There is now support for a wider range of fonts; the changes were introduced
+to support Japanese. Details in the fonts appendix
+(@pxref{Fonts,,,sm,The SM Manual}).
+
+@item
+Shading with a solid colour on hardware that supports area fills is now
+done using the hardware support; this currently means X11 and postscript.
+
+@item
+The @code{-f} command line option can now be used to name the @file{.sm}
+file instead of specifying a full path.
+
+@item
+Startup files can be called @file{.sm} or @file{sm.rc}; the latter is
+looked for first on non-unix machines.
+
+@item
+You can now specify the slant and condensation of fonts with @code{\slant}
+and @code{\condense}.
+
+@item
+Support for reading tables, in particular FITS binary tables.
+
+@item
+The WINDOW command can handle ranges of windows (e.g. WINDOW 1 4 1 2:3)
+(n.b. for a while this was written as WINDOW 1 4 1 2.3).
+
+@item
+You can now create vectors and variables with local (actually nested) scope
+with the commands DEFINE var LOCAL and SET vec LOCAL.
+
+@item
+PRINT now supports the integer formats 'd', 'o', and 'x'.
+
+@item
+Added colour to the raster devices
+
+@item
+Added new devices to generate pbm, ppm, and gif files.
+
+@item
+Added a compile-time option to use @code{double}s rather than @code{float}s
+for vectors.
+
+@item
+Understand hex integers (of the form 0x...).
+
+@item
+The X11 driver now puts up the current cursor position when in cursor mode;
+this can be disabled with the -nocurswindow flag to the DEVICE x11 command.
+
+@item
+SM now supports the syntax FOREACH @code{var name} @{ @dots{} @} to iterate
+over each element of a vector @code{name}.
+
+@item
+You can access the help string associated with a vector @code{name} as
+the string-valued expression HELP(name); useful in labels as $(HELP(name)).
+
+@item
+(This isn't really new, but it's little known). The devices tpic and gpic
+can be used to generate figures that @TeX{} can pass to dvips and xdvi.
+
+@item
+You can now use %o and %x formats in READ 'format' @dots{} commands.
+
+@item
+You can now declare a macro @code{abort_handler} to trap USER ABORTs.
+
+@item
+Added command DITHER to do Floyd-Steinberg dithering of images.
+
+@item
+Added expressions DO(s_expr, s_expr) and  DO(s_expr, s_expr, s_expr) to
+allow implicit DO loops within expressions.
+
+@item
+You can now extract values from images by index as well as by coordinate;
+furthermore you can specify entire rows or columns (e.g. set r=image[*,0] to
+read the entire first row of an image).
+
+@item
+You can refer to an entire image as image[*,*]
+(e.g. set image[*,*] = 2*image[*,*]).
+
+@item
+Commands like "list device" now work even if device is overloaded.
+
+@item
+Added "list table" to list columns in (fits binary) tables
+
+@item
+When reading tables, you can now say "read table @{ name[0-4] @}" to read an
+array from the table into (in this case) 5 vectors.
+
+@item
+Added "while @{ expr @} @{ commands @}".
+
+@item
+Added break to escape from WHILE loops.
+
+@item
+Added modulus operator, %.
+
+@item
+Added bitwise operators, | and &.
+
+@item
+You can define the variable @code{print_noheader} to stop the PRINT command
+printing the vectors' names.
+
+@item
+Expressions are now allowed among the arguments of macros used as functions
+
+@item
+The default is now to save the read pointer (see READ).
+
+@item
+Added incomplete Gamma functions (useful for, e.g., chi^2 probabilities)
+
+@item
+SM is now able to open an arbitrary number of X11 devices simultaneously
+(e.g. @code{dev x11 -dev 1}).
+
+@item
+You can request a private colour map for X11 devices; allocating (e.g.) 256
+colours should work with this option.
+
+@item
+The connect function for callable SM is now @code{sm_connect} (@code{sm_conn}
+is still supported for backwards compatibility).
+
+@item
+Added @code{sm_ctype_i} and @code{sm_set_ctypes} to manipulate colour maps
+from callable SM.
+
+@end table
+
+@node Change 2.4, Release 2.4.1, Release 2.4, Top
+@unnumbered Inconsistent Changes from Version 2.3.0 to Version 2.4
+
+@table @bullet
+@item
+The changes to macros with variable numbers of arguments means that you'll
+have to declare macros with zero to one arguments as having 01 arguments; the
+old form (11) means between one and one arguments.
+
+@item
+Italic fonts are now @emph{not} toggled off again by a second @code{\it} in
+@TeX{} mode; rather you must use explicit grouping with @{@}.
+
+@item
+In callable SM, @code{sm_window} now expects 6 arguments, not 4.
+
+@item
+The macro @code{is_set} now does what it says; it doesn't do an implicit
+WHATIS. You probably want to use @code{is_macro} or @code{is_vector} rather
+than @code{is_set}.
+
+@item
+The command "set image(expr,expr) = expr" is now deprecated; please say
+"set image[expr,expr] = expr".
+
+@item
+The command to use ranges of windows is of the form "WINDOW 1 4 1 2:3", but
+for a while it was "WINDOW 1 4 1 2.3" (it was changed as
+"WINDOW 1 12 1 8.10" is indistinguishable from "WINDOW 1 12 1 8.1").
+
+@item
+For devices with strange aspect ratios, points are now expanded to preserve
+shape rather than compressed (this is now consistent with the behaviour
+of characters). Axis ticks are also suitable scaled.
+
+@end table
+
+@node Release 2.4.1, Release 2.4.2, Change 2.4, Top
+@unnumbered Changes from Version 2.4.0 to Version 2.4.1
+
+@table @bullet
+@item
+Added a new SM device @code{TK} for creating Tk widgets to display SM
+plots. See also tkSM in the callable directory.
+
+@item
+Added experimental driver for linux virtual console windows; can corrupt
+video memory and require a reboot (not, I claim, an SM bug). See RHL for
+details.
+
+@item
+The variables @code{angle}, @code{expand}, and @code{ptype} now acquire
+an extra value when vector-valued (namely, the dimension of the vector).
+@end table
+
+@node Release 2.4.2, Release 2.4.3, Release 2.4.1, Top
+@unnumbered Changes from Version 2.4.1 to Version 2.4.2
+
+@table @bullet
+@item
+The CURSOR command now always updates the plot position
+
+@item
+The command CURSOR READ updates the plot position, i.e. it RELOCATEs
+to the current cursor position.
+
+@item
+When using the cursor to define vectors, a `p' is now equivalent to
+`e' `q', i.e. it defines a point and exits.
+@end table
+
+@node Release 2.4.3, Release 2.4.4, Release 2.4.2, Top
+@unnumbered Changes from Version 2.4.2 to Version 2.4.4
+
+@table @bullet
+@item
+Macros are now automatically forced to end in space or newline, which
+means that local variables/vectors don't softly and suddenly vanish
+at the end of (some) macros.
+
+@item
+When reading a table, if you specify the name of an array field without
+specifying the desired element, it's now taken to be 0, and a 0 is appended
+to the field name.
+
+@end table
+
+@node Release 2.4.4, Release 2.4.5, Release 2.4.3, Top
+@unnumbered Changes from Version 2.4.2 to Version 2.4.4
+
+@table @bullet
+
+@item
+Added TABLE N command to select Nth HDU of a table; for fits binary
+tables this caches the read pointer and is @emph{much} more efficient
+than using TABLE N filename.
+
+@item
+Added WRITE IMAGE to write images to disk (useful for binary i/o of vectors)
+
+@item
+Added IMAGE DEFINE to define keywords for images written to disk
+
+@item
+Added an ability to run SM from within emacs, e.g. sending the current
+buffer to be executed; load sm-mode and type @code{M-x describe-mode}
+for details. 
+@end table
+
+@node Release 2.4.5, Release 2.4.6, Release 2.4.4, Top
+@unnumbered Changes from Version 2.4.4 to Version 2.4.5
+
+No record exists of these changes; see the changes in 2.4.6.
+
+@node Release 2.4.6, Release 2.4.7, Release 2.4.5, Top
+@unnumbered Changes from Version 2.4.4 to Version 2.4.6
+
+@table @bullet
+@item
+Added LTYPE EXPAND to rescale the pattern of dots and dashes used in drawing
+lines
+
+@item
+Added SET WORD[expr, expr] = expr to efficiently set parts of vectors.
+
+@end table
+
+@node Release 2.4.7, Release 2.4.8, Release 2.4.6, Top
+@unnumbered Changes from Version 2.4.6 to Version 2.4.7
+
+@table @bullet
+@item
+Allow FITS binary tables following image HDUs
+
+@end table
+
+@node Release 2.4.8, Release 2.4.20, Release 2.4.7, Top
+@unnumbered Changes from Version 2.4.7 to Version 2.4.8
+
+@table @bullet
+
+@item
+Advertised an SM bug page at 
+@code{http://www.astro.princeton.edu/cgi-bin/gnatsweb.pl}.
+
+@item
+Support for FITS files with IMAGE extension (@code{IMAGE n filename})
+
+@item
+Support for integer valued vectors.  @emph{Watch out!} This is a major
+change deep down in SM's insides and may well have broken something.
+Please reports any problems ASAP.
+
+@item
+Added << and >> operators.
+
+@item
+Allow set_opts to control byte swapping
+
+@item
+Added (bad) CMYK support to DEVICE postfile to make ApJ happy (I hope).
+
+@item
+Added $cwd to track current directory
+
+@item
+Added "DEFINE name < str > [ INT, INT ]" command
+
+@end table
+
+@node Release 2.4.20, Release 2.4.23, Release 2.4.8, Top
+@unnumbered Changes from Version 2.4.8 to Version 2.4.20
+
+@table @bullet
+@item
+Support IMAGE n file [ ... : ... ] to read parts of images.
+
+@item
+Added "STRING<WORD>" to convert text that contains single quotes to
+SM strings.
+
+@item
+Support e.g. READ '' @{ x y z @} to read x, y, and z from the first 3 columns of
+a file.
+
+@item
+Integer vectors in a SORT @{ ... @} list are no longer converted to float
+(unless they're being sorted on)
+
+@item
+Integer vectors may be specified as e.g. READ x 1.d as well as 1.i
+
+@item
+The xr and yr fields in graphcap entries may now be given as $n to
+expand to an argument to the DEVICE command.
+
+@item
+A new option (setting ICLOCK's 0x8 bit) is now supported in Axis to
+draw axis labels on the opposite side from the ticks.
+
+@item
+You can also choose AXIS's ICLOCK value to totally suppress ticks, but
+not labels.
+
+@item
+Modify history editor to save last line you modified at bottom of history
+list (avoiding losing changed by accidental uparrow-downarrow pair).
+
+@item
+Added script make_tags that makes emacs-stype TAGS files from sets
+of SM macros.
+
+@item
+You can now say @code{MACRO name "02 " @{ @dots{} @}} to declare a
+macro with 0 --- 2 arguments (previously only possible using MACRO READ).
+Clumsy, but better than nothing.
+
+@item
+Added internal variable @code{label_offset} to control how far axis
+labels are drawn from their axes.
+
+@item
+Added support for writing (FITS binary) tables: @code{WRITE TABLE}.
+
+@item
+Added short-circuiting logical operators (in scalar contexts) AND and OR;
+e.g. @code{if($?foo AND $foo == 1) @{ echo OK @}}
+
+@item
+Allow @code{SORT(expr)} in expressions; e.g. @code{set x = sort(y)}
+
+@item
+Allow @code{set x = y if(scalar)}
+
+@end table
+
+@node Release 2.4.23, Release 2.4.28, Release 2.4.20, Top
+@unnumbered Changes from Version 2.4.20 to Version 2.4.27
+
+@table @bullet
+@item
+Allow type qualifiers (e.g. @code{.s}) in @code{READ '' @{@}};
+e.g. @code{READ '' @{ x s.s i.d @}};
+
+@item
+Allow @code{\colour@{@}} in TeX_strings; also \ctype and \color
+
+@item
+In @code{READ '' @{ vector list @}} you can specify columns to be skipped
+as @code{.}, e.g. @code{READ '' @{ a . . d @}}.
+
+@item
+You can now request SURFACE to draw summits that poke above/below
+the z-axis limits.
+
+@item
+Integer vectors in a SORT @{ ... @} list are no longer converted to float
+even if they're being sorted on
+
+@item
+All sorts are now done by qsort;  heap sorts no longer make sense with
+the size of vectors people are using.
+
+@end table
+
+@node Release 2.4.28, Release 2.4.30, Release 2.4.23, Top
+@unnumbered Changes from Version 2.4.28 to Version 2.4.29
+
+@table @bullet
+
+@item
+Complain (if VERBOSE is 1 or more), but allow incorrect PRINT formats.  E.g.
+PRINT '%d' @{ vec @} for a floating point vector (use @code{'%.0f'} instead)
+
+@item
+Fix bug in postscript driver whereby the positions of points/lines could
+drift after many many closely spaced dots.  Actually, it's arguably a
+bug in postscript whereby sequences of @code{currentpoint moveto}
+accumulate rounding error.
+
+@item
+Added device postfileBB to write a postscript file using the external program ps2eps
+to calculate the bounding box (@code{http://www.telematik.informatik.uni-karlsruhe.de/~bless/ps2eps.html}).
+
+@item
+Added optional argument ANGLE to HISTOGRAM and SHADE HISTOGRAM to specify
+that the histogram was being drawn ``sideways'' -- equivalent to setting
+ANGLE to 90 with HISTOGRAM (but that didn't work with shading).
+
+@item
+Added macros @code{xtcolours} (and @code{xtcolors}) to define the standard X11 colours.
+
+@item
+Added macro @code{contour_dot} to macro/images to use a combination of contours and dots
+for figures with many, many points.
+
+@item
+Support J2000 in @code{eqgal}/@code{galeq} macros.
+
+@item
+Added macro @code{whisper} to plot `whisper' diagrams.
+
+@item
+Added macro @code{frelocate} to relocate to a position, taking the box
+to have limits zero to one.
+
+@item
+Make callable SM support @code{default_font}.
+
+@item
+Support device's aspect ratio when using SHADE.
+
+@end table
+
+@node Release 2.4.30, Release 2.4.33, Release 2.4.28, Top
+@unnumbered Changes from Version 2.4.30 to Version 2.4.32
+
+@table @bullet
+
+@item
+Added support for using SWIG to generate a python interface to SM. This is
+controlled by a new @code{set_opts} option.
+
+@item
+Fixed multi-page postscript files (using PAGE)
+
+@item
+SHADE now accepts an fractional part to the line spacing; this
+offsets the lines by that fraction of a spacing.
+
+@item
+Made changes so that SM's encapsulated postscript is strictly conforming
+
+@end table
+
+@node Release 2.4.33, Change ??, Release 2.4.30, Top
+@unnumbered Changes from Version 2.4.33 to ??
+
+@item Increased NO_VALUE to 1e300 when using double vectors
+
+@table @bullet
+@end table
+
+@node Change ??, , Release 2.4.33, Top
+@unnumbered Inconsistent Changes from Version 2.4 to Version ??
+
+@table @bullet
+@item
+The CURSOR and CURSOR vec vec commands now only print a help string
+if verbose is greater than zero.
+
+@item
+Because macros are now forced to end in space or newline, an extra
+space may appear in your output. End macro with an explicit # to avoid
+this.
+
+@item
+Post sm2_4_13 I increased CHARMAX from 160 to 1000; this caused SM to crash
+under Mac OS/X.  Reverted (only for macs) in sm2_4_22
+
+@end table
+
+
+@bye

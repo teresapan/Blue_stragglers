@@ -1,0 +1,593 @@
+@c
+@c We seem to have to use @setref as well as @node; I don't know why
+@c
+@node Device, Dither, Delete, Commands
+
+@iftex
+@syntax Device.
+@end iftex
+@example
+Syntax: DEVICE WORD [ rest_of_line ]
+        DEVICE INTEGER [ WORD ] [ rest_of_line ]
+        DEVICE META WORD
+        DEVICE META CLOSE
+@end example
+@pindex Device
+@findex plotting devices, see device
+
+(The @code{DEVICE INTEGER} form is retained for historical interest and
+backwards compatibility only.)
+
+Choose a device to plot to. Exactly which devices are available depends
+on your hardware configuration and how SM was compiled. You can list
+available devices with the @code{LIST DEVICE} command (@pxref{List}).
+When you specify a device the previous device is closed, which
+may lead to some action being taken (for example, sending a plot
+to a printer).
+
+When a device is opened it is looked up by name in the @file{graphcap} file
+(@pxref{Graphcap}).
+In some cases all the information that SM needs to plot to the device is
+available there (for example @code{xterm} or @code{postscript}); such devices
+are referred to as @code{stdgraph} devices. Otherwise the graphcap entry
+will contain the name of the real device driver, for example @code{x11}.
+Anything else on the line is passed to the device driver.
+@findex device, saving output to a file
+@findex saving device output to a file
+In particular, for the @code{stdgraph} devices an argument that is not
+specifically processed by the device is taken to be the name of a file to save
+the plot in. Thus @code{device postscript foo.ps} creates a plot in a file
+called @file{foo.ps}@footnote{This isn't actually the preferred way to create
+a postscript file; it's better to use a specialised device such as
+@code{postfile} (@pxref{Postscript}), or at least to say
+@code{device postscript ":SY=mv $F foo.ps:"} (@pxref{Stdgraph}).}
+
+The pseudo-device META is special (@pxref{Meta}). It is used to support
+metafiles, which allow you to save a plot as you display it, and
+finally send it to a different device.
+
+Especially for hardcopy devices, you may have to specify which one you want,
+e.g. @code{DEVICE postscript latypus}. Because this depends on how your
+local graphcap was configured, you'll have to see your Guru for guidance;
+see @ref{Graphcap}.
+
+When a device is opened, it is set to the current CTYPE, LWEIGHT, and
+LTYPE, and the proper aspect ratio is chosen to make text and plotted
+points look nice. It also looks for an entry @code{foreground} in your @file{.sm} file, and uses it as the default colour for the device (this
+overrides any default that the device driver may have specified). The
+device driver may (or may not) choose to honour a @code{background}
+entry as well. These colours may be specified either as names (see
+CTYPE), or the background colour may be given as a set of three numbers, 
+which are interpreted as the
+red, green, and blue intensities in the range 0 - 255. Some devices may allow
+you a wider selection of background names; for example the Xwindows driver
+allows any name from the colour database.
+@findex .sm, background
+@findex .sm, foreground
+@findex line drawing on a new device
+
+If you want to use some foreground colour that @code{CTYPE} doesn't usually
+understand you must define it before opening the device. For example, after
+defining the macro
+@example
+add_colour 4 ## add a colour to the standard set. Usage: name r g b
+             CTYPE=<0 255 0 255 0 0 0 255 255 $2> + \
+                 256*(<0 255 0 0 255 0 255 0 255 $3> + \
+                       256*<0 255 0 0 0 255 255 255 0 $4>)
+             ctype=<default white black red green blue cyan magenta yellow $1>
+@end example
+@noindent
+you could say @code{add_colour gray 200 200 200}, after which `gray' would
+be a perfectly good `foreground' colour.
+
+Different ways of plotting to
+the same device (e.g. portrait or landscape) are accommodated by using
+different drivers (e.g. @code{postport} and @code{postland} for postscript
+devices) rather than some magic command to SM.
+@findex portrait plots
+@findex landscape plots
+
+@menu
+* Nodevice::		The NULL device
+* Borland::		Borland Graphics on a PC
+* Metafile::		Graphics Metafiles
+* OS/2::		OS/2 Presentation Manager
+* Postscript::		Postscript Devices
+* SGI::			The Silicon Graphics (and RS-6000) Device
+* Stdgraph::		The General Device Driver, using Graphcap
+* SunView::		The SunView (and Sunwindows) Devices
+* Tk::                  A Tk Widget
+* UnixPC::		The Unix-PC Device
+* MS-Windows::		PC Graphics under MS-Windows
+* VAX-UIS::		VAX/VMS UIS$ device
+* XWindows::		The X-Windows Devices (X10 and X11)
+@end menu
+
+@node Nodevice, Borland, , Device
+@center The NULL device
+@findex device, nodevice
+
+@iftex
+@setref{Nodevice}
+@end iftex
+DEVICE @code{nodevice} is always available; it is a bit bucket where
+plot commands may be sent never to be seen again, the equivalent of
+@code{/dev/null} (under unix) or @code{nl:} under VMS.
+
+It is useful because it is always available; it's the current device when
+SM is started.
+Because SM submits plots only when the current
+device is closed, and because opening @code{nodevice} closes the current
+device, it is also used by the @code{hardcopy} command (in fact
+@code{hardcopy} is a macro that expands to @code{DEVICE nodevice}).
+
+@node Borland, OS/2, Nodevice , Device
+@center Borland Graphics on a PC
+@findex device, borland
+@findex borland graphics
+
+@iftex
+@setref{Borland}
+@end iftex
+SM works on a PC running DOS either by using Borland's graphics or windows
+(see the section on MS-Windows); this section describes the former.
+SM was ported
+to run under DOS by Laurent Bartholdi, who also wrote the BGI and MS-Windows
+device drivers. He gets all the credit for the PC version of SM, but of
+course he is not responsible for any remaining bugs (some of which we
+almost certainly created while merging the PC and regular versions).
+
+The graphics drivers, the @file{.bgi} files, are assumed to be in a directory
+given by the DOS @code{BGIPATH} environment variable; alternatively you
+can specify a @code{bgipath} variable in your @file{.sm} file.
+
+The DEVICE command takes two optional arguments:
+@code{DEVICE bgi devtype mode}. The first, @code{devtype}, is the type of
+hardware that you are running. If you want the driver to try to figure
+this out for itself, use @code{DEVICE bgi detect} (this is the default
+if you omit devtype entirely); for a listing of
+possibilities say @code{DEVICE bgi ?}. The second argument, @code{mode},
+determines how SM switches between screen and graphics modes. Your options are
+@code{none}, @code{swap} (the default), or @code{switch}; experiment to
+see which works better for you. At present, a certain amount
+of `snow' is left at the top of the graphics screen. This is very dependent
+on the details of your graphics card, and we see no general way to prevent
+its appearance.
+
+Once you have decided what options you like best, you can set a variable
+@code{stdmode} in your @file{.sm} file (e.g. to @code{detect swap}) to save
+yourself some typing.
+
+There is a `hot key', @code{ALT-F1}, that can be used to toggle between text
+and graphics mode.
+
+The current return value of the function @code{coreleft} is available as
+@code{$coreleft} (which is like any other @code{DEFINE var |} variable).
+
+@sp 1
+@node OS/2, Metafile, Borland, Device
+@center OS/2 Presentation Manager
+
+@iftex
+@setref{OS/2}
+@end iftex
+The OS2PM driver is used to display graphics in a Presentation Manger
+graphics window under OS/2 v2.x (you should specify your terminal as
+@code{os2pc}). Two optional arguments are currently supported:
+@table @code
+@item -n
+Disable all backing for the graphics window. This will
+significantly increase the drawing speed, but the contents
+of the graphics window will not be redrawn when portions of 
+the window are uncovered or when the window is resized.
+@item -gWxH
+Specify the window geometry. The W and H parameters should
+contains the WIDTH and HEIGHT of the graphics window in pixels.
+@end table
+
+If DEVICE os2pm is specified without the -gWxH argument the graphics window
+will be created the same size as the last previously displayed window. If
+this is the first time the graphics window is created it will default to
+600 x 400 pixels.
+
+For example,
+@example
+     DEVICE os2pm -g800x500
+          .
+          .
+          .
+     DEVICE os2pm -n
+@end example
+The first DEVICE statement will produce an 800 x 500 pixel graphics
+window with backing enabled. The second will again produce an 800 x 500
+pixel window but with no backing.
+
+@sp 1
+@node Metafile, Postscript, OS/2, Device
+@center Graphics Metafiles
+
+@iftex
+@setref{Metafile}
+@end iftex
+As described elsewhere (@pxref{Meta}) SM can save graphics commands
+to a metafile while producing a plot on your screen.
+
+@sp 1
+@node Postscript, SGI, Metafile, Device
+@center Postscript Devices
+@findex device, postscript
+@findex postscript graphics
+@iftex
+@setref{Postscript}
+@end iftex
+
+Strictly speaking, there are no postscript devices, merely postscript
+drivers in stdgraph (@pxref{Graphcap}). On the other hand, SM is able
+to drive postscript printers in a totally transparent way, so a user
+can think of SM's postscript capability as discrete drivers. In the
+following descriptions the arguments to the device command are referred to
+as @code{$1}, @code{$2}, and so on. Aliases are listed in parentheses
+after the device name, so @code{post_colour} can also be called
+@code{post_color}.
+Those
+currently supported are:
+@table @code
+@item postscript (POSTSCRIPT)
+The basic driver; produces 8x8inch output on the default printer.
+@item postport (POSTPORT)
+A full-page portrait-mode plot.
+@item postland (POSTLAND)
+A full-page landscape-mode plot.
+@item post_colour (post_color)
+Like @code{postscript}, but generates a colour postscript plot, and sends
+it to a printer called ps_colour0.
+@item blackpostscript
+Like @code{post_colour}, but uses a black background.
+@item postfile (postencap)
+Like @code{postscript}, but generate an encapsulated postscript file in $1.
+@item postlandfile
+Like @code{postland}, but generate an encapsulated postscript file in $1.
+@item post_remote (postscript_remote)
+Like @code{postscript}, but prints to a printer @code{$2} on host @code{$1}.
+@item postland_remote
+Like @code{postscript}, but prints to a printer @code{$2} on host @code{$1}.
+@item postport_remote
+Like @code{postport}, but prints to a printer @code{$2} on host @code{$1}.
+@end table
+
+For an example of defining your own postscript device that takes a printer
+name as an argument, see @ref{Graphcap}.
+
+@sp 1
+@node SGI, Stdgraph, Postscript, Device
+@center The Silicon Graphics (and RS-6000) Device
+@findex device, sgi
+@findex sgi graphics
+
+@iftex
+@setref{SGI}
+@end iftex
+The Silicon Graphics device driver works. If you read this and want
+more documentation, send mail to us and we'll get to it.
+
+@sp 1
+@node Stdgraph, SunView, SGI, Device
+@center The General Device Driver, using Graphcap
+@findex device, stdgraph
+@iftex
+@setref{Stdgraph}
+@end iftex
+
+By far the majority of devices that SM supports are driven through the
+@code{stdgraph} device; a partial list includes @code{tek4010}, @code{tek4012},
+@code{pericom},
+@code{selanar}, (or @code{hirez} ),
+@code{versaterm} (or @code{macvt} ), 
+@code{vt640} (a vt100 with retrographics ), @code{vt240} in REGIS mode,
+@code{hard4012} or @code{hard4010} for a tek4010 that really has no decent
+ascii mode, @code{tek4025}, @code{wyse1575}, @code{cit414a} or 414a.
+We also support graphcap drivers for Postscript, QMS, and LN03 laser printers,
+(device names @code{postscript, qms} and @code{ln03}). Stdgraph can also
+cooperate with @code{raster} devices, for instance to plot on a lineprinter.
+
+For the @code{stdgraph} (i.e. default) device driver the final word on
+the command line (if present) is taken to be the name of a file to receive
+the output that would ordinarily go to the screen, so if you say
+@example
+device graphon outfile
+@end example
+and then create a plot nothing will seem to happen. However, if you close the
+device and write @file{outfile} to the terminal (maybe using /passall
+if you are running VMS) your plot will appear.
+In addition, any word
+beginning with a colon will be taken to be part of a graphcap entry
+(@pxref{Graphcap}), and prepended to the entry in the graphcap file
+for your chosen device.
+For example, if you wanted to save your postscript output in a file
+you could say
+@example
+dev postscript ":SY=echo File is $F:"
+@end example
+@noindent
+which would replace the @code{SY} entry that sent the output
+to the printer by a new one that merely tells you what the file is called.
+If you'd prefer to give it a memorable name, you could say
+@example
+dev postscript ":SY=echo File is \$F:OF=name:"
+@end example
+@noindent
+or
+@example
+dev postscript :SY@@: :OF@@: name
+@end example
+@noindent
+(it doesn't matter if the entries are all in the same word). The former
+redefines the output file @code{OF} to be ``name'', and makes @code{SY}
+tell you so. The latter disables both @code{OF} and @code{SY}, so the generated
+postscript would ordinarily go to the terminal (just like any other
+graphics terminal), but a file @file{name} is specified, so the output is sent
+there instead.
+@findex graphcap, overriding on command line
+
+If you find yourself frequently wanting to use a customised stdgraph device,
+this mechanism can become rather tedious; you'd rather simply invent the
+device and be done with it. The proper way to do this is to create a local
+graphcap file (@pxref{Graphcap File}), and add your new device to it.
+For example, if you wanted to define a postscript device that took the name of
+the printer as its argument, you'd put an entry
+@example
+mypostscript|like postscript, but specify the printer as its argument:\
+        :SY=lpr -r -P$1 $F:TC=postscript:
+@end example
+@noindent in your file, and merrily proceed with making beautiful plots
+using @code{DEVICE mypostscript fred}. If you always want to use your new
+device you could call it @code{postscript} and in effect redefine the
+old @code{postscript} device (note carefully that I said @code{:TC=postscript:}
+not @code{:tc=postscript:}; if I hadn't, an infinite loop would have resulted).
+@findex graphcap, adding a local device
+
+@sp 1
+@node SunView, Tk, Stdgraph, Device
+@center The SunView (and Sunwindows) Devices
+@findex device, sunwindows
+@findex sunwindows graphics
+@findex device, sunview
+@findex sunview graphics
+
+@iftex
+@setref{SunView}
+@end iftex
+As the @code{sunwindows} driver is now obsolete, and may well disappear in
+some future release, you should use the @code{sunview} driver instead.
+@findex sun, device drivers
+If you insist on using the old driver, it
+must be run from within a gfxtool.
+
+  The SunView window driver supports a subset of the usual SunView
+command line arguments, specifically:
+@table @code
+@item -WH
+Summarise options
+@item -Wi
+Open window as an icon
+@item -Wl label
+Specify label for the window (default: SM)
+@item -Wn
+Don't label window
+@item -WP x y
+Position of icon
+@item -Wp x y
+Position of window
+-Ws w h
+Size of window
+@end table
+
+The standard SunView popup `frame' menu has been modified to
+allow you to erase the graphics screen. It is perfectly safe to use
+the menu to @code{quit} the graphics window, in this case the next
+@code{device sunview} command will create a new one. If SM
+thinks that the window is active when you try to kill it, it will warn
+you; failing to believe it may result in a cascade of complaints to
+the console window. There is a bug in the cursor routine (I claim that
+it is a SunView bug) that means that SM sees only every other key-stroke.
+
+@sp 1
+@node Tk, UnixPC, SunView, Device
+@center A Tcl/Tk Widget
+
+@iftex
+@setref{Tk}
+@end iftex
+
+It's possible to build SM to support a Tk widget (on unix boxes only; the
+SM Tk graphics are based on X11). If this interests you, specify the @code{TK}
+device when building SM, then build tkSM in the callable directory and say
+@example
+   tkSM smtk.tcl
+@end example
+@noindent
+to run an example that we wrote.
+The source code should be easily modifiable to add features that your
+application needs.
+
+@sp 1
+@node UnixPC, MS-Windows, Tk, Device
+@center The Unix-PC Device
+@findex 3B1 device driver
+@findex Unix-PC device driver
+@findex upc device driver
+@findex device, Unix PC
+
+@iftex
+@setref{UnixPC}
+@end iftex
+On a Unix-PC @code{DEVICE upc} opens a window of 304 by 192 pixels,
+which is about 4 by 4 inches. To quote the author
+(Peter Teuben, teuben@@astro.umd.edu),
+@enumerate
+@item
+This whole Unixpc version is an experimental version, take
+it as is, it works on my configuration, but may not work on yours.
+    
+@item
+I'm playing with allowing a second and third parameter to
+the upc device name, which would allow you to change the default size of 304
+by 192 pixels (The size in X must be a multiple of 16 though).
+Right now I have it check environment variables @code{YAPP_X} and
+@code{YAPP_Y}, but this may not work satisfactorily.
+
+@item
+I spawn windows using the public domain program `wlogin',
+this may be of some importance if your `upc' device in SM fails. 
+@end enumerate
+
+I don't have a Unix PC, so I can't work on this driver.
+
+@sp 1
+@node MS-Windows, VAX-UIS, UnixPC, Device
+@center PC Graphics under MS-Windows
+@iftex
+@setref{MS-Windows}
+@end iftex
+
+This section needs more work; send mail to @code{rhl@@astro.princeton.edu}.
+
+@sp 1
+@node VAX-UIS, XWindows, MS-Windows, Device
+@center VAX/VMS UIS$ device
+
+@iftex
+@setref{VAX-UIS}
+@end iftex
+the VAXUIS driver is used to display graphics on a VAX Workstation
+using the VAX UIS$ library routines. The optional X and Y parameters
+specify the size of the graphics window ( in centimeters ) created on
+the workstation screen.
+
+   If called without the optional X and Y parameters the graphics 
+display window will be the same size as that previously displayed.
+
+   If the X and Y parameters are not specified the first time the
+DEVICE vaxuis command is issued, the graphics display window will
+occupy 1/2 the height and 1/2 the width of the workstation screen.
+
+For example, to create a 15 cm wide x 10 cm tall display window say:
+@example
+		DEVICE vaxuis 15 10
+@end example
+
+@sp 1
+@node XWindows, , VAX-UIS, Device
+@center The X-Windows Devices (X10 and X11)
+@findex device, Xwindows
+@findex Xwindows graphics
+@findex xwindows device drivers
+@findex Xwindows device drivers
+@iftex
+@setref{XWindows}
+@end iftex
+
+There are two X-Windows drivers, one for X10 and one for X11 and they
+differ in their treatment of command line arguments. The X11 driver
+is considerably more sophisticated and will be treated first.
+
+@findex X11, device driver
+The X11 window driver (device @code{x11}) supports a subset of the standard
+command line arguments, specifically (the X-resources names appear in
+parentheses at the ends of the descriptions):
+@table @code
+@item #geom
+Specify icon geometry (@code{.icongeometry})
+@item -bd n
+Border width (@code{.borderwidth})
+@item -bg colour
+Background colour (@code{.background})
+@item -device n (@code{.device})
+Use X11-device n
+@item -cmap
+Use a private colour map for this device (@code{.colormap})
+@item -colormap
+Use a private colour map for this device (same as -cmap). (@code{.colormap})
+@item -colourmap
+Use a private colour map for this device (same as -cmap). (@code{.colormap})
+@item -cmap
+Use a private colour map for this device (@code{.colormap})
+@item -display name
+Name of display to open (@code{.display})
+@item -fg colour
+Foreground colour (@code{.foreground})
+@item -fn fontname
+Name of hardware font to use (@code{.font})
+@item -geometry geom
+Specify window geometry (@code{.geometry})
+@item -help
+Summarise options
+@item -kbdfocus
+Preserve keyboard focus (the same as -focus). Without this, some window
+managers transfer focus to the graphics window when it is created; probably
+not what you want (@code{.kbdfocus})
+@item -iconic
+Open window as an icon (@code{.iconic})
+@item -name name
+@item -ndevice n (@code{.ndevice})
+Allow up to n X11 devices
+@item -nocurswind
+Do @emph{not} show the cursor position while in cursor mode (same as -nocw)
+Specify name of window (@code{.name})
+@item -preopened display_id:window_id
+Specify device and window id's
+@item -synchronise
+Synchronise with server (debugging only) (@code{.synchronise})
+@item -title title
+Specify title of window (@code{.title})
+@end table
+
+Where @code{geom} is a standard geometry string of the form @code{WxH+-X+-Y},
+and the @code{preopened} option is for a programme calling SM
+non-interactively.
+All options may be abbreviated, so
+@example
+device x11 -i #-1+1 -g 512x512+100+100
+@end example
+@noindent
+specifies that the graphics window be created as an icon in the top
+right hand corner of the screen, and that the real window should be
+512*512 and positioned near the top left corner.
+
+SM is able to open more than one x11 device (by default it can handle 5);
+see the @code{-device} and @code{-ndevice} options.
+You can say @code{device x11 -dev +} to switch to the next open X11
+device; @code{device x11 -dev -} switches to the previous one.
+
+If you want to raise your graphics window so that you can see it, you
+can either use the window manager, reopen the device (@code{dev x11}),
+erase the screen, or use the @code{PAGE} command.
+
+On hardware that doesn't support a backing store (or if you have chosen
+to disable a backing store when compiling the X11 driver) the screen will
+only be refreshed when it is active or when SM is waiting for input. If
+your operating system doesn't support the @code{select()} system call you
+may be even worse off, but reopening the device (@code{device x11}) should
+still result in the screen being redrawn.
+
+If you use @code{CTYPE = expr} to ask for more than a small number of
+special colours (@pxref{Ctype}), you will probably need to specify
+@code{-cmap} to get your own colour map; if you don't SM may well
+complain about being unable to allocate colours.
+
+@findex X10, device driver
+The X10 driver is known as @code{xwindow}, and you can optionally
+specify a device to open, and a window ID, on the command line. For
+example
+@example
+device xwindows DEVICE unix:0
+@end example
+@noindent
+will open a graphics window on device @code{unix:0}. (You can
+optionally include a @code{ID number} after the DEVICE if you are calling
+SM from a programme, and have already opened the window).
+The X10 driver doesn't bother to remember any hardware characters that
+you may have 
+written on a graph, so that if you refresh the window they won't appear.
+If this worries you can, as always, force the software character set
+with an @code{expand 1.001}.

@@ -1,0 +1,144 @@
+@node Environment Variables, Erase, Edit, Commands
+
+@iftex
+@syntax Environment Variables.
+@end iftex
+@example
+Environment (`sm') Variables
+@end example
+@pindex Environment Variables
+
+SM environment variables are defined in @file{.sm} files, which are searched
+for along a path which typically consists of
+the current directory, your home directory, and then some system place. You
+can specify your own search path by setting the environment (VMS: logical)
+variable @code{SMPATH}.
+If ~ appears in a path it is interpreted as your home directory unless you
+specified @code{-u NAME} when starting SM, in which case it will be interpreted
+as NAME's home directory instead.
+Alternatively, you can specify the name of the environment file using the
+`-f' flag on the command line; if it starts with a @file{/} it will be taken
+to be an absolute path name, otherwise it will be taken relative to the
+current path.
+
+If you invoke SM with the @code{-f} or @code{-u}
+flags, the are @emph{not} passed on to raster devices, so if you plot
+to a device that invokes @code{rasterise} it will use the @code{.sm} files
+specified by @code{$SMPATH}.
+
+Each line of the files is taken to consist of a variable name, and the
+rest of the line which is taken to be its value. Any variable may be
+accessed using the DEFINE @code{name :} command, which defines @code{name}
+from the environment file.
+
+Comments run from `#' to the end of the line.
+If the first character of a line is a `@@' or `+' the name is taken to start
+with the second character. A `@@' means that the entry isn't present, and
+that SM should stop searching the path for it. A `+' means that SM should
+keep on searching the current @file{.sm} file, and then the rest of the
+search path, looking for more entries with the same name. If it finds one,
+the second value is added to the end of the first (and if the second
+occurrence also had a `+' specified the search continues).
+@findex .sm stopping search for a variable with @@
+@findex .sm concatenating values with +
+
+Some entries in the environment file are special to SM, although
+you are free to use them to your own ends as well. For most of those for
+which SM is only interested in whether the variable is defined, a value
+of 0 means that it shouldn't be defined. The variables are:
+@table @code
+@item background
+The background colour for plots
+@item case_fold_search
+If non-zero, make searches case insensitive
+@item default_font
+@findex default_font
+The default font for labels; you can also set this interactively, e.g.
+@code{expand 1.001 define default_font "\oe\3"}.
+@item device
+Your initial graphics device
+@item edit
+A file of keybindings to read (@pxref{Key Bindings}).
+@item fan_compress
+Apply fan compression when connecting lines. This was donated by a user, and
+is intended to reduce the number of lines actually plotted to the device;
+whether it is useful is not clear. The reference is
+@i{IEEE Computer Graphics and Applications, March 1989,
+`Faster Plots by Fan Data-Compression', by R.A. Fowell and D.D. McNeil}.
+
+@item file_type
+The type of 2-D image for the IMAGE command
+@item filecap
+The filecap file to use (default: same as graphcap)
+@item line_up_exponents
+Force an extra space before single-digit exponents in axis labels
+@item fonts
+The name of the binary fonts file
+@item foreground
+The foreground colour for plots
+@item graphcap
+The graphcap file to use
+@item help
+The help directory
+@item history
+The length of the history list (default: 80)
+@item history_char
+The character used to recall commands (default: ^)
+@item history_file
+File to save history in
+@item macro
+The default macro directory
+@item macro2
+Your private macro directory
+@item missing_macro_continue
+If defined, a reference to a missing macro isn't a syntax error
+@item name
+The name SM calls you by
+@item noclobber
+Refuse to overwrite existing files with MACRO WRITE or PRINT.
+@item overload
+If non-zero, overload some commands
+@item printer
+The default printer (see hcopy and hmacro)
+@item prompt
+The initial value of SM's prompt
+@item prompt2
+The initial value of SM's secondary prompt
+@item remember_history_line
+Remember which line you last reused
+@item save_file
+Default file to save a SM session in
+@item save_read_ptr
+Save the position of the read pointer between READ commands
+@item temp_dir
+The directory for temporary files
+@item term
+Default terminal, over-ruling @code{TERM}
+@item termcap
+The file describing terminals to SM
+@item TeX_strings
+Use @TeX{}-style strings for labels
+@item traceback
+Print the macro stack following an error
+@item uppercase
+Define uppercase versions of some macros
+@item x_gutter
+@itemx y_gutter
+Modify the spacing between windows when using the WINDOW command.
+(These are not actually read from the @file{.sm} by the default
+startup macro, you have to set them yourself).
+@end table
+Under Unix, you should omit the @code{termcap} entry, or point it at
+`/etc/termcap'. Also under Unix, SM knows how to look up your
+name, so you can omit the @code{name} entry. If you try to use a name
+with more than one word, SM will use the first so you'll have
+to call yourself `my_lord' rather than `my lord' (the `_' will be
+replaced by a space).
+
+Some of these are used directly by SM (e.g. @code{help}, @code{fonts},
+but some are merely used by the @code{startup} macro to set the initial
+value of SM variables (e.g. @code{TeX_strings}, @code{file_type}).
+Other names may be used by the default @code{startup} macro, e.g.
+@code{macro2} to specify a private macro directory or
+@code{term} to specify the terminal that you are using. See the
+discussion of @code{startup} under `useful macros'.

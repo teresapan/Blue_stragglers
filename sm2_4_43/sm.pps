@@ -1,0 +1,151 @@
+%{
+#include "pps.h"
+#include <ctype.h>
+
+int nbrace;
+/*
+ * Note that INITIAL is really a misnomer, it means, `in Macro Mode',
+ * which is how we start macro files, but not SAVE files. The default
+ * mode should be ISTART (which must begin with an `I' because that's
+ * how pps does things).
+ */
+%}
+letter	[A-Za-z_$]
+digit	[0-9]
+white	[ \t]
+%Start COMMENT ISTART STRING1 STRING2 KEYWORD
+%%
+^Dump\,		{ begin(ISTART); ECHO; } 
+(<ISTART>|<INITIAL>)^{white}*{letter}({letter}|{digit})*/{white}*\(	{
+			register char *cp = yytext;
+			if (nbrace == 0) {
+				while (isspace(*cp++))
+					;
+				funct(--cp);
+			}
+			REJECT;
+		}
+<INITIAL>^({letter}|{digit})+ { begin(KEYWORD); ECHO; BEGIN(INITIAL); }
+<INITIAL>{letter}({letter}|{digit})*	{
+			char buff[41];
+			int i;
+			int kw = iskw(yytext);
+			if(!kw &&	/* try the lowercase version */
+			   isupper(*yytext)) {
+			   for(i = 0;i < 40 && yytext[i] != '\0';i++) {
+			      buff[i] = isupper(yytext[i]) ?
+				tolower(yytext[i]) : yytext[i];
+			   }
+			   buff[i] = '\0';
+			   kw = iskw(buff);
+			}
+				 
+			if (kw)
+				begin(KEYWORD);
+			ECHO;
+			if (kw)
+				begin(INITIAL);
+		}
+<ISTART>\"	{ begin(STRING1); ECHO; }
+<ISTART>\'	{ begin(STRING2); ECHO; }
+<INITIAL>#.*	{ begin(COMMENT); ECHO; begin(INITIAL); }
+<STRING1>\\.	{ ECHO; }
+<STRING2>\\.	{ ECHO; }
+<STRING1>\"	{ ECHO; begin(ISTART); }
+<STRING2>\'	{ ECHO; begin(ISTART); }
+[\t\n\f]+	{ space(yytext); }
+<ISTART>\{	{ nbrace++; REJECT; }
+<ISTART>\}	{ nbrace--; REJECT; }
+<ISTART>^Macros\:	{ ECHO; BEGIN(INITIAL); }
+.		{ ECHO; }
+%%
+/*
+ * This should really be sorted by frequency.
+ */
+char *keywords[] = {
+	"   ",
+	"abs",
+	"acos",
+	"angle",
+	"asin",
+	"atan",
+	"axis",
+	"bo",
+	"box",
+	"con",
+	"concat",
+	"connect",
+	"cos",
+	"ctype",
+	"cursor",
+	"da",
+	"data",
+	"define",
+	"delete",
+	"device",
+	"dimen",
+	"do",
+	"draw",
+	"edit",
+	"erase",
+	"errorbar",
+	"exp",
+	"expand",
+	"fft",
+	"foreach",
+	"format",
+	"grid",
+	"help",
+	"histogram",
+	"history",
+	"identification",
+	"if",
+	"label",
+	"lg",
+	"lim",
+	"limits",
+	"lin",
+	"lines",
+	"list",
+	"ln",
+	"location",
+	"ltype",
+	"lweight",
+	"macro",
+	"notation",
+	"pi",
+	"poi",
+	"points",
+	"print",
+	"prompt",
+	"ptype",
+	"putlabel",
+	"quit",
+	"range",
+	"read",
+	"relocate",
+	"return",
+	"set",
+	"show",
+	"sin",
+	"sort",
+	"spline",
+	"sqrt",
+	"standard",
+	"sum",
+	"sum",
+	"tan",
+	"termtype",
+	"ti",
+	"ticksize",
+	"user",
+	"verbose",
+	"version",
+	"window",
+	"write",
+	"xla",
+	"xlabel",
+	"yla",
+	"ylabel",
+	NULL
+};

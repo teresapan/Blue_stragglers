@@ -1,0 +1,33 @@
+#
+# Default rules for compiling code.
+#
+start :
+	echo $(DEFAULT_PATH)
+.c.obj :
+	$(CC) -c $(CFLAGS) -I.. -DDEFAULT_PATH="\"$(DEFAULT_PATH)\"" {$*.c }
+#
+OBJECT = \
+	ftruncate.obj get_val.obj regexp.obj sort.obj str_scanf.obj system.obj \
+	numword.obj tree.obj utils.obj vectors.obj
+#
+..\libutils.lib : $(OBJECT) 
+	tlib /C ..\libutils.lib @&&!
+-+ftruncate.obj -+get_val.obj -+regexp.obj -+sort.obj -+str_scanf.obj &
+-+numword.obj -+system.obj -+tree.obj -+utils.obj -+vectors.obj
+! > nul
+#
+clean :
+	- del *.obj
+#
+# dependencies
+#
+#START_DEPEND
+ftruncate.obj :	..\options.h
+get_val.obj :	..\options.h
+regexp.obj :	..\options.h
+sort.obj :	..\options.h
+str_scanf.obj :	..\options.h
+tree.obj :	..\options.h ..\tree.h
+utils.obj :	..\options.h
+vectors.obj :	..\options.h ..\tree.h ..\vectors.h
+

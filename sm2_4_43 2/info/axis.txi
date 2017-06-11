@@ -1,0 +1,143 @@
+@node Axis, Box, Aspect, Commands
+
+@iftex
+@syntax Axis.
+@end iftex
+@example
+Syntax: AXIS A1 A2 VSMALL VBIG AX AY ALEN ILABEL ICLOCK
+        AXIS A1 A2 VSMALL VBIG VLAB AX AY ALEN ILABEL ICLOCK
+        AXIS A1 A2 ASMALL ABIG AX AY ALEN ILABEL ICLOCK
+@end example
+@pindex Axis
+@findex axes, drawing
+
+Makes an axis labeled from @code{A1} to @code{A2} at location @code{AX},
+@code{AY}, length @code{ALEN}.
+The first form (with @code{VSMALL} and @code{VBIG}) specifies the values
+where you want small and big ticks explicitly; if you specify the string-valued
+vector @code{VLAB} it will be used to label the big ticks.
+The third form is more
+obscure: If @code{ABIG} > 0 use that for spacing of large ticks.
+If @code{ASMALL} < 0 make a logarithmic axis, if @code{ASMALL} = 0, do
+the default. (See TICKSIZE for more on the meaning of negative
+@code{ASMALL} and/or @code{ABIG}).
+If @code{ASMALL} > 0 try to use that for the spacing of small ticks.
+
+@code{ILABEL} is 0 for no labels, 1 for labels parallel to axis, 2 for
+perpendicular to axis, and 3 for neither labels nor ticks.
+@code{ANGLE} determines the angle of the axis.
+
+@code{ICLOCK} is used for (too) many purposes; it's treated as three
+integers of 1, 2, and 1 bits respectively.
+@example
+ICLOCK      & 0x1:      Control the ticks orientation:
+                        0       Anticlockwise from the axis
+                        1       Clockwise from the axis
+(ICLOCK>>1) & 0x3:      Control the tick direction:
+                        0       Ticks are perpendicular to axis
+                        1       Ticks are vertical
+                        2       Ticks are vertical
+                        3       Don't draw any ticks
+(ICLOCK>>3) & 0x1:      Control which side of the axis the ticks appear:
+                        0       The same size as the labels
+                        1       The opposite side to the labels
+@end example
+@noindent
+
+If you prefer not to think in terms of bitwise operators, this can be
+written as if @code{ICLOCK} is even the ticks are anticlockwise on the
+axis, if odd they are clockwise. You usually want the ticks
+perpendicular to the axes, and this is what you get with @code{ICLOCK} 0
+or 1; if it is 2 or 3 the ticks are vertical, and if 4 or 5 they are
+horizontal. The labels are on the opposite side of the axis from the
+ticks unless you add 8 to the numbers given above.
+
+For example, the following commands are equivalent to @code{BOX}:
+@example
+ANGLE 0
+AXIS $fx1 $fx2 0 0 $gx1 $gy1 $($gx2-$gx1) 1 $(0|8)
+AXIS $fx1 $fx2 0 0 $gx1 $gy2 $($gx2-$gx1) 0 $(1|8)
+ANGLE 90
+AXIS $fy1 $fy2 0 0 $gx1 $gy1 $($gy2-$gy1) 2 $(1|8)
+AXIS $fy1 $fy2 0 0 $gx2 $gy1 $($gy2-$gy1) 0 $(0|8)
+ANGLE 0
+@end example
+@noindent
+(except that I set @code{ICLOCK}'s @code{0x8} bit to draw the ticks
+outside the box).
+
+If you want to label the bottom axis of some
+plot only at prime points try
+@example
+SET b=@{1 2 3 5 7 11 13 17 19@} SET s=0,20
+AXIS 0 20 s b 3500 3500 27500 1 0
+@end example
+@noindent
+If you have used LIMITS to scale the axes and LOCATION or WINDOW
+to move them, you could say something like
+@example
+AXIS $fx1 $fx2 s b $gx1 $gy1 $($gx2-$gx1) 1 0
+@end example
+An example of using your own string valued labels would be:
+@example
+set s=1,7,.5 set b=1,7 set labs=@{ O B A F G K M @}
+LIMITS 1 7 0 0
+AXIS 0 10 s b labs 3500 3500 27500 1 0
+@end example
+@noindent
+which works as expected. If you don't have a shift key and try using
+lower case (obafgkm) you'll be surprised as all the letters are not
+at the same level (as they don't all have the same height). The easiest way
+to deal with this is to make them all the same height:
+@example
+set labs=@{ o b a f g k m @} + '\\strut'
+@end example
+@noindent
+(a strut is a @TeX{}ism that has the height and depth of a parenthesis;
+I'm afraid that you do have to escape the \ in the string). If that leaves
+too much space try:
+@example
+set labs='\\move 100' + @{ o b a f g k m @} + '\\strut'
+@end example
+@noindent
+I think that you get the point.
+
+If you want more control over placement and sizes of axis labels and
+ticks, you can force SM to draw them separately:
+@example
+        EXPAND 0.5
+        AXIS $fx1 $fx2 0 0 $gx1 $gy1 $($gx2-$gx1) 0 $(1<<3)
+        EXPAND 1.44
+        AXIS $fx1 $fx2 0 0 $gx1 $gy1 $($gx2-$gx1) 1 $(3<<1)
+@end example
+@noindent
+gives smaller-than-usual ticks outside the box with larger-than-usual labels
+(you could have used @code{define default_font "2"} to achieve the latter)
+@findex drawing ticks @emph{outside} the box
+
+The distance of labels from axes is controlled by the SM variable
+@code{label_offset}; increase it to move them further away.
+@findex internal variable, label_offset
+
+Rather than use AXIS to draw all of your axes, it may be easier
+to use BOX with some 3's to disable its axis-drawing habits. You'll
+still get a box, but no ticks or labels. For example,
+@example
+LIMITS 0 1 0 10 BOX 1 2 0 3 TICKSIZE 0 0 -1 0 BOX 3 3 1 3
+@end example
+@noindent
+will label the @i{y}-axis with both linear and logarithmic axes.
+
+@emph{This was changed in V2.1: To specify logarithmic axes you should
+now specify the logarithms, just as you do to BOX.} For example, to
+draw a logarithmic axis running from 1 to 1000, 
+specify @code{A1} as 0 and @code{A2} as 3, rather than 1 and 1000. 
+
+See NOTATION if you want to control the use of floating point
+or exponential notation.
+You can control the font used by setting
+the variable @code{default_font}.
+If you want your positive and negative exponents to line up
+define the SM variable @code{line_up_exponents}; if it's @code{1} they'll
+be padded with a space, if @code{2} or more, with a @code{+}
+(you can do this in your @file{.sm} file).

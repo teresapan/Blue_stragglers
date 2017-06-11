@@ -1,0 +1,1938 @@
+@node Appendices, Release Notes, Commands, Top
+@appendix Appendices
+
+@menu
+* Command Internals::	How The Command Interpreter Works
+* Graphcap::		How SM uses Graphcap to Plot to almost any Device
+* Calling SM::		Calling SM from Programmes
+* Grammar::		The SM Grammar
+* 2-D Graphics::	Two-Dimensional Graphics
+* Tables::              Reading and writing tables
+* Termcap::		Termcap -- A Terminal Database
+* New Devices::		Adding New Devices, and Porting to New Machines
+* Libraries::		The System Macro Libraries
+* Mongo::		Tips for Mongo Users
+* Fonts::		SM's Fonts
+@end menu
+
+@node Command Internals, Graphcap, , Appendices
+@appendixsec The Command Interpreter
+
+The basis around which the command interpreter is written is a grammar
+which is passed a set of tokens ( analogous to words in English )
+which it parses, given a set of grammatical rules. As it recognises
+each rule, it executes the code associated with that rule.
+@xref{Grammar}.
+
+An example would be:
+@example
+        aa : BB CC
+           @{
+              printf(``Rule BB CC found\n'');
+           @}
+@end example
+@noindent
+which specifies that the rule aa consists of the token @code{BB} followed by
+@code{CC},
+and that if rule @code{aa} is recognised the programme should print that fact
+out. Conventionally, uppercase names are reserved for `terminal symbols',
+and lowercase for `non-terminal symbols' where terminal symbols are
+those that are passed to the parser ( analogous to words ), and
+non-terminal symbols are tokens that the parser has constructed out of
+terminal symbols (analogous to phrases). The right hand side of a rule
+may contain a mixture and non-terminal symbols, and symbols may be
+assigned a
+value@footnote{The grammar is actually specified using YACC, see S.C. Johnson
+@emph{YACC: Yet Another Compiler Compiler}, Computing Science Technical
+Report
+No. 32, 1975, AT&T Bell laboratories, Murray Hill, NJ07974. This report is
+reprinted in section 2b of the UNIX manual, and is rather difficult reading
+at first. We do not in fact use the AT&T code, which is proprietary, but
+rather a public domain compiler-compiler called Bison written by the
+Free Software Foundation.
+}.
+@findex grammar tokens
+@findex bison's copyright notice
+
+@appendixsubsec Token Generation
+@findex input character processing
+SM generates tokens for the grammar roughly as follows:
+When characters are typed at the keyboard, they are read by a routine
+which runs in CBREAK mode (PASSALL for VMS), and
+receives each character as it is typed. It is this routine that handles
+command line editing, the history system, and
+key bindings.@footnote{Specifying @code{-s} on the command line bypasses all
+of this, and makes SM read input one line at a time.}
+Following a carriage return, it passes the whole line to the
+lexical analyser, which divides
+the input stream into integers, floats, strings, or words. In addition it
+recognises @code{$@{@}^} as having special meanings (see below under
+variables (@code{$}) and history (@code{^})). As in
+C, the escape sequence `\n' is replaced by a newline, which means that
+commands which read to the end of the line may be fooled into thinking
+that they have found it; see the examples at the end of the section.
+A @code{@{} sets the flag `noexpand', which
+turns off the interpretation of all special symbols, and causes all
+tokens to be returned as @code{WORD}. The matching @code{@}} unsets this flag.
+This mechanism is used in defining macros and various lists.
+A word is anything which is not otherwise recognised, so for
+example `hello_there.c' or `1.2e' would be considered words.
+Symbols are separated by white space, taken to be spaces tabs or newlines,
+or the characters @code{!}, @code{@{}, @code{@}}, @code{+}, @code{-},
+@code{*}, @code{/}, @code{=}, @code{?}, @code{!}, @code{,}, @code{<},
+@code{>},
+@code{(}, or @code{)}. This behaviour can be modified by enclosing a string in
+double quotes, when no characters (except @code{^}) are special, and
+tokens are delimited only by the end of the line, or some character
+after the closing quote.
+Enclosing in quotes is rather
+similar to enclosing in @{@}, except that quotes have no grammatical
+significance. A string in double quotes is always treated as a word,
+but the quotes must not have been discarded by the time that the
+lexical analysis occurs.
+@findex numbers as words
+@findex floats as words
+For example, @code{"2.80"} is a float, as SM will have digested
+the @code{"} before looking at the string. You can fool it with @code{"2.80 "}.
+A string begins with a @code{'} and continues to the next @code{'}: they
+are used in certain contexts where SM needs to know if a
+@code{WORD} or @code{STRING} is involved, for example in a @code{PRINT}
+command. It's worth noting that the @code{'...'} are stripped when the
+string is recognised -- if you need to preserve them make sure that
+@code{noexpand} is set (e.g. @code{SET s=@{ 'a' 'b' 'c'@} }).
+@findex strings, preserving quotes
+
+The output from this programme is passed to a second stage of lexical
+analysis. This passes integers and floats through unaltered, while
+words are passed through a filter to see if they are external
+tokens@footnote{i.e. tokens that have been recognised, typically keywords}
+from the grammar (such as @code{CONNECT}).
+If a word is recognised as being a token then that token is returned,
+otherwise the token @code{WORD} is passed, and the text of the word is stored.
+Tokens may be written in
+either lower or upper case, but for clarity they are written in upper
+case in this document. The overloading of lowercase tokens is achieved
+at this stage by simply refusing to recognise them as keywords.
+
+The input stream is now fully analysed into tokens and is passed to the
+parser, which is written in YACC.
+If the sequence of tokens seen corresponds to a grammar rule,
+the parser executes the appropriate section
+of code, which is written in C. If the parser doesn't understand, it
+tells you that you have a syntax error and prints the last
+logical line that it was processing, with the error underlined. If you can't
+figure out which command it really failed on, try setting the @code{VERBOSE}
+flag to be 4 or more. This produces a voluminous output, which will stop
+suddenly when the error re-occurs.
+One simple rule in the grammar is that a @code{WORD} should be
+treated as a possible macro.
+
+@appendixsubsec Peculiarities of the Grammar
+@findex peculiarities of the grammar
+If the command interpreter is faced with a pair of grammar rules such as
+@example
+        AA BB CC
+@r{and}
+        AA BB
+@end example
+@noindent
+it may not know whether to treat the tokens @code{AA BB} as the first part of
+@code{AA BB CC} or as the complete command @code{AA BB} followed by the token
+@code{CC} beginning the next command
+without examining the next token. This ambiguity only arises if a command can
+begin @code{CC}, and may
+be dealt with by defining the second rule as
+@example
+        AA BB \n
+@end example
+@noindent
+This should be borne in mind whenever
+SM complains about a syntax error in an apparently valid command (such
+as @code{LIST MACRO HELP}, intended as first @code{LIST MACRO} and then the valid
+command @code{HELP}). The presence of a required carriage return also sometimes
+requires that macros be spread over a number of lines rather than as one
+long list of commands, although a carriage return may always be written as
+`\n', which makes SM think that it has found a carriage
+return. There is a also requirement that an @code{ELSE}less @code{IF} statement
+should end with a newline; this is produced by a subtlety of the way
+that @code{IF}'s are processed and is discussed under @code{IF}.
+
+SM places a restriction upon commands such as @code{RELOCATE} which
+expect more than one argument, which is that the arguments must be
+numbers rather than (scalar) expressions. This is required by the
+unary minus, as if the grammar sees @code{expr1 - expr2} it cannot know
+whether this is the two expressions @code{expr1} and @code{-expr2}, or the single
+expression @code{expr1-expr2}. Unless the grammar is changed, for instance by
+using commas to separate arguments, this restriction cannot be lifted;
+it can, however, frequently be circumvented using macros such as @code{rel}
+discussed under `Useful Macros'. As an alternative, in almost all
+cases the expression can be enclosed in parentheses, for example
+@code{connect (lg(x)) (-lg(rho))}.
+
+@appendixsubsec The Macro Processor
+@findex macros, implementation
+Executing a macro consists of substituting the text of the macro for
+its name. In order to understand how SM does this you have to
+know a bit more about how it processes input characters. We said above
+that it `passed the whole line' to the lexical analyser. What it
+actually does is to pass a pointer to the line, and starts reading
+from the beginning of the line. Now if you execute a macro, all that
+is done is that we now pass a pointer to the text of the macro, and
+start reading from it instead. The old pointer is pushed onto the top
+of a stack. When SM comes to the `\0' at the end of the macro
+text, the stack is popped and input continues as if the macro had
+never been seen. When we come to the end of the `whole line' pushed at
+the top of this paragraph, @emph{it} is popped, and SM gives
+you a prompt for more input.
+Of course, if a macro had been seen while the first
+macro was being executed, the first one would get pushed onto the
+stack, and attention transferred to the the new one. If a macro has
+any arguments, their definitions are pushed onto an argument stack
+which is popped at the proper times. To jump ahead a little, variables
+are implemented in a very similar way, being pushed onto the stack, as
+are @code{DO} and @code{FOREACH} loops, and perhaps more surprisingly
+@code{IF} statements.
+
+The strange behaviour of @code{RETURN} at the end of macros comes about
+because when the input routine is reading the @code{RETURN} it has to
+read one character beyond it, so as to know that it isn't dealing with,
+say, @code{RETURN_OF_THE_NATIVE}. But in looking for the next character
+it has to pop the macro off the stack, so when the @code{RETURN} is
+acted upon we have @emph{already} returned from where we wanted to
+return from, and we now @code{RETURN} from the wrong place. In a
+similar way, an @code{IF} at the end of a macro will cause the parser
+to look for an @code{ELSE}, thereby popping the macro stack if there
+isn't one. If the @code{IF} test was true, and contained references to
+macro arguments, there will be a problem as either there will be no
+macros defined, or the arguments to the previous macro on the stack
+will be supplied.
+
+@emph{This behaviour is changed in SM2.4.3 and above; an automatic
+space or newline is added at the end of every macro, avoiding this problem.}
+
+Macro definitions are currently stored in the form of a weight-balanced
+tree (actually
+a
+@tex
+BB($1-\sqrt{2}/2$)
+@end tex
+@ifinfo
+BB(1-sqrt(2)/2)
+@end ifinfo
+tree). This means that the access time for a given macro
+only grows as the logarithm of the total number defined. In the future it may
+be possible to choose the weights depending on the access probability for
+a given macro, but this is not currently possible. Definitions of variables
+and vectors are stored in the same way.
+
+@appendixsubsec The DO, FOREACH, and IF commands
+@findex do, foreach, and if, implementation
+It seems worth discussing the implementation of these commands.
+Both loops consist of a definition of a variable, together with instructions
+about what to do with it, followed by a list of commands within a set
+of @{@}, while @code{IF} just has the command list.
+It is not possible for the main grammar to execute commands or
+macros, as the YACC implementation is
+non-reentrant, so the best that it can do is to push the commands onto
+the input stack as a sort of temporary macro, after defining the
+initial value of the loop parameter. When the `\0' at the end of the
+loop appears, instead of popping the macro stack we simply define the
+loop parameter to have its next value, and jump back to the
+beginning. This means that you can't change the value of a loop parameter,
+as it'll be reset anyway, but you can use it as a sort of local variable.
+
+@code{IF} statements are similar, in that we read the entire list
+before executing it. Once more, a temporary buffer is pushed onto the
+stack, with instructions to delete it after use. The reason that a newline
+is required after an @code{ELSE}less @code{IF} is that the grammar will
+have already read the next token to see if it was @code{ELSE}. If it
+wasn't, then it will seem to have been typed before the body of the
+@code{IF}. For example, @code{IF( test ) @{ echo Hello @} PROMPT :} will be
+parsed as @code{IF( test ) @{ PROMPT echo Hello @} :} if test is true,
+but correctly as @code{IF( test ) @{ echo Hello @} PROMPT : } if it is false.
+Because an extra \n does no harm, we demand it.
+
+@appendixsubsec Examples of How SM Parses Input
+@findex grammar, examples
+If you want to watch SM thinking about these examples, the command
+@code{VERBOSE 4} will make it print out in detail each token as it reads it,
+and each macro or variable as it expands it. To turn this off, use
+@code{VERBOSE 0} or @code{VERBOSE 1}.
+To really see the parser at work, try a negative value of verbosity.
+This will report every step that the parser takes, providing that it
+was compiled with DEBUG defined. A second negative value will turn the
+information off again.
+@findex grammar, verbose debugging
+
+@table @code
+@item PROMPT @@
+@code{PROMPT} is an external token, so @code{PROMPT} is passed to the
+grammar which recognises the rule
+@code{PROMPT WORD}, and sets the prompt to be `@@'. When it has finished,
+control is passed back to the input routine.
+@item MACRO p @{ PROMPT @}
+This is a simple macro defining @code{p} to be @code{PROMPT}
+@item p @@
+The lex analyser doesn't recognise @code{p} as a keyword, so it returns
+@code{WORD}
+and as the grammar has no other interpretation of a @code{WORD} in this
+context,
+it passes @code{p} to the macro interpreter, which
+replaces it by @code{PROMPT} (i.e.  pushes @code{PROMPT} onto the input stack).
+SM now thinks that you have just typed
+@code{PROMPT @@}, and behaves as described in the first example.
+@item MACRO pp 1 @{ PROMPT $1 @}
+The macro @code{pp} is declared to have one argument, which is referred to as
+$1. After @code{pp} is invoked it reads the next (whitespace delimited) word
+from the input stream, and replaces @code{$1} by that word.
+@item pp @@
+Just like the first example, the prompt is set to @code{@@}.
+@item pp
+You are prompted for the missing argument to @code{PROMPT}.
+@item PRMPT
+As @code{PRMPT} isn't an external token, it is a @code{WORD}, so SM
+tries to execute
+it as a macro and complains if it isn't defined.
+@item DEFINE Hi Hello
+The variable @code{Hi} is defined to have the value @code{Hello}.
+@item WRITE STANDARD $Hi Gentle User
+When it has read @code{$Hi} SM pushes the value of the variable @code{Hi}
+onto the stack and then reads it, popping it off again when it has finished.
+The @code{WRITE STANDARD} command writes @code{Hello Gentle Reader} (i.e.
+up to the end of the line) to the terminal.
+@item WRITE STANDARD $Hi Gentle User \n pp "SM>"
+As above, the rest of the line is written to the terminal (up to the
+carriage return `\n'), then the prompt is changed yet again.
+@end table
+
+@include stdgraph.txi
+
+@node Calling SM, Grammar, Graphcap, Appendices
+@appendixsec Calling SM from Programmes
+@findex calling SM
+@findex C interface to SM
+@findex fortran interface to SM
+
+@menu
+* Callable Intro::        Introduction to Callable SM
+* Example::               Example of Calling SM Functions
+* Functions (1-D)::       Function Definitions: 1-D
+* Functions (2-D)::       Function Definitions: 2-D
+* Callable Parser::       Calling the SM interactive Parser from Programmes
+* Why call sm_alpha?::    Why do I have to call @code{sm_alpha} etc.?
+* Fortran Names::        How to Configure Function Names for Fortran
+@end menu
+
+@node Callable Intro, Example, , Calling SM
+@appendixsubsec Introduction to Callable SM
+
+The SM callable interface is different from that of
+Mongo and corresponds directly to the interactive version. Almost
+all of the commands available in SM can be called from either
+fortran or C, the exceptions being those concerned with the macro processor,
+variables, history, and vector manipulations. We assume that if you want to
+call graphics routines directly, then you are prepared to take responsibility
+for such things. In C (and probably pascal, modula, or ADA), the calls have the
+same names as the commands with the prefix @code{sm_}, so to set the limits say
+@code{sm_limits(0.0,1.0,0.0,1.0);}. On VMS, and with some unix systems (notably
+HPUX and AIX), if you are writing fortran, you must
+prepend
+an `f' to the command - @code{call fsm_limits(0.0,1.0,0.0,1.0)}. If you forget
+this
+`f', your programmes will compile, but they @file{won't} work. (They'll give
+segmentation violations, most likely.  Why?  Because you will be calling the
+C functions directly, not the Fortran interface functions, and the languages 
+have different ways of passing arguments, so e.g. you will pass the address of
+the variable from your Fortran program to a C function that expects to get the
+value of the variable.  This translation is precisely what the interface 
+functions are set up to do for you).@footnote{Under Unix
+the loader can often distinguish fortran from C, so you may @emph{not}
+need the `f' -- @code{call sm_limits(0.0,1.0,0.0,1.0)}}
+@findex VMS, names of callable functions
+If your fortran compiler cannot find the function names, you might have to
+read the section on how SM chooses function names (@pxref{Fortran Names}).
+
+So how are you supposed to know what to call the functions?  Well, our best
+suggestion is to ask the person who build SM on your system; the second best
+suggestion is to look in 
+@file{libplotsub.a} (or @file{libplotsub.olb} on VMS systems), and see what 
+the names of the functions are.  On VMS, try this:
+@example
+lib/list/names libplotsub/lib
+@end example
+and look at the names it lists under module @code{INTERFACE}.  On a unix system
+you can use @code{nm} (or, if desperate strings). The output is quite long,
+so I'd filter the output, e.g.:
+@example
+nm libplotsub.a | grep errorbar
+@end example
+@noindent
+If you see things in the output like @code{fsm_errorbar}, then
+you know this is one of those machines where you have to prepend the `f' for
+the fortran interface functions.
+
+If you used an ANSI compiler to link SM (or your guru did) then you
+should provide prototypes for the SM functions that you call if
+you use the C interface (Fortran knows nothing of such things).
+This can be done by including the file @file{sm_declare.h}.
+
+In what follows, we will assume that you are not writing fortran under
+VMS, so we will omit the leading effs.
+
+@findex calling SM, Libraries
+To use SM functions, you must link with appropriate libraries. You
+will always need to link with the three SM libraries, @code{libplotsub},
+@code{libdevices}, and @code{libutils} @emph{in that order}. Specifically,
+under Unix, you'll need to include the files @file{libplotsub.a},
+@file{libdevices.a}, and @file{libutils.a}
+when you link (it's probably easier to use @code{-lplotsub -ldevices -lutils},
+along with a @code{-Ldir} if needed).
+and under VMS you'll
+need @file{libplotsub.olb/lib}, @file{libdevices.olb/lib}, and @file{libutils.olb/lib}. I can't tell you where
+they'll be on your system.
+In addition, you may need to link (after @code{utils})
+any libraries used by
+the devices that have been compiled into your version of SM.
+For example, if you use the X-windows driver, you'll need to link with
+the X-library (@code{-lX}). Consult a local guru in case of any trouble -
+the person who installed SM has had to work this out already.
+
+@node Example, Functions (1-D), Callable Intro, Calling SM
+@appendixsubsec Example of Calling SM Functions
+
+A list of functions giving the calling sequence for all the
+available functions follows, but first an example. Note especially the use of
+@code{graphics} and @code{alpha} to set the terminal to graphics mode, and
+return
+to a normal terminal afterwards. We would recommend always calling these,
+if they do nothing (e.g.  on a laser printer) they'll do no harm.
+A related function is @code{gflush()} which will update graphics on the
+screen, for instance with stdgraph where output is usually buffered.
+
+Some devices (such as GL on an SGI, or X-windows on machines without
+backing store such as RS/6000's) need some help from you to redraw the
+screen. You do this by calling @code{redraw} whenever you are waiting
+for input, passing it `0' (the file descriptor of standard input, for
+those of you familiar with C). When input is ready, @code{redraw} will
+return and your application can proceed. It should do no harm on systems
+where it does no good.
+
+If you don't want to be bothered with calling
+ @code{sm_alpha}, @code{sm_graphics}, @code{sm_gflush}, and
+@code{sm_redraw}, see @ref{Why call sm_alpha?}.
+
+There are examples of programmes (in both C and fortran)
+calling SM in the directory @code{sm/callable}; you might want to look at them
+before starting your own project.
+
+@findex calling SM, example
+@findex example, calling SM
+@example
+        integer NXY
+        parameter (NXY=20)
+        integer sm_device
+        integer i
+        real x(NXY),y(NXY)
+c
+        do 1 i=1,NXY
+           x(i) = i
+           y(i) = i*i
+1  continue
+c
+        if(sm_device('hirez') .lt. 0) then
+            print *,'Can''t open hirez'
+            stop
+        endif
+        call sm_graphics
+        call sm_defvar("TeX_strings","1")
+        call sm_limits(-1.,22.,0.,500.)
+        call sm_ctype('red')
+        call sm_box(1,2,0,0)
+        call sm_ptype(40.,1)
+        call sm_points(x,y,NXY)
+        call sm_xlabel('X axis')
+        call sm_ylabel('Not x axis')
+        call sm_alpha
+        print *,'hit any key to exit'
+        call sm_redraw(0)
+        read(5,*) i
+        end
+@end example
+@noindent
+Remember, if you were running VMS, HPUX, or AIX then all those calls would 
+start `f' - @code{call fsm_graphics} and so forth.
+Note that @code{sm_box} takes all of its four possible arguments, and that
+commands such as @code{sm_points} add an argument to specify the number
+of points to plot.
+You must, of course, ensure that you use the correct type of variables,
+passing integers or reals as required (and as listed below). If you are
+using C, you must carefully distinguish between passing by value, and
+passing by address (which we only use when an array is expected, and
+for returning a cursor position).
+
+@node Functions (1-D), Functions (2-D), Example, Calling SM
+@appendixsubsec Function Definitions: 1-D
+
+@findex calling SM, function definitions
+The functions are as follows. For fuller definitions of the
+arguments look at the main description of the command. The only ones
+that are different are @code{sm_curs}, @code{sm_defvar},
+and @code{sm_plotsym} because they don't
+quite correspond to any interactive commands. A common source of
+trouble is not noticing that the @code{sm_ptype} call is the @emph{vector}
+form of the command, so to set a ptype of `4 1' you must
+say @code{sm_ptype(41.0,1)}.
+
+The arguments are declared in fortran in this list. @code{real x(n)}
+means that @code{x} is an array of size n.
+`Real' means single precision. (So in C,
+@code{character}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{char *};
+@code{integer}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{int};
+@code{real}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{float};
+@code{real()}
+@tex
+$\rightarrow$
+@end tex
+@ifinfo
+-->
+@end ifinfo
+@code{float *}. We deal with converting the
+calling conventions from one language to another, but note comments at
+the bottom of this table.)
+@table @code
+@item sm_alpha
+Set terminal back to a normal state
+@item sm_angle(a)
+Set angle to a (real a)
+@item sm_axis(a1,a2,as,ab,ax,ay,al,il,ic)
+Draw an axis. (real a1,a2,as,ab; integer ax,ay,al,il,ic)
+@item sm_box(x1,y1,x2,y2)
+Draw a box - note 4 args. (integer x1,y2,x2,y2)
+@item sm_connect(x,y,n)
+Connect a line. (real x(n),y(n); integer n)
+@item sm_conn(x,y,n)
+Equivalent to sm_connect
+@item sm_ctype(c)
+Set colour to c (character c)
+@item sm_ctype_i(i)
+Set colour to i (integer i)
+@item sm_curs(x,y,k)
+Return position of cursor (real x,y; integer k)
+@item sm_defvar(str1,str2)
+Select variable str1 to str2 (character str1, str2)
+@item sm_device(str)
+Select device str (character str); return integer
+@item sm_dot
+Draw a dot
+@item sm_draw(x,y)
+Draw to (x,y) in user coords (real x,y)
+@item sm_erase
+Erase screen
+@item sm_errorbar(x,y,e,k,n)
+Draw error bars (real x(n),y(n),e(n); integer k,n)
+@item sm_expand(e)
+Set expand to e (real e)
+@item sm_format(xf,yf)
+Set format strings to xf and yf (character xf,yf)
+@item sm_get_variable(name) (character name)
+Return the value of the variable name, if it's a special variable
+@item sm_gflush
+Flush graphics output
+@item sm_graphics
+Set terminal into plotting mode
+@item sm_grelocate(x,y)
+Relocate in screen coordinates (integer x,y)
+@item sm_grid(i)
+Draw a grid (integer i)
+@item sm_hardcopy
+Close current device, if appropriate make hardcopy
+@item sm_histogram(x,y,n)
+Draw a histogram (real x(n),y(n); integer n)
+@item sm_identification(str)
+Identification string (character str)
+@item sm_label(str)
+Draw a string (character str)
+@item sm_limits(x1,x2,y1,y2)
+Set limits (real x1,x2,y1,y2)
+@item sm_location(x1,x2,y1,y2)
+Set location (integer x1,x2,y1,y2)
+@item sm_ltype(lt)
+Set ltype (integer lt)
+@item sm_lweight(lw)
+Set lweight (real lw)
+@item sm_notation(xl,xh,yl,yh)
+Set axis format defaults (real xl,xh,yl,yh)
+@item sm_page()
+Equivalent to PAGE interactively
+@item sm_plotsym(x,y,n,sym,ns)
+Draw user points (real x(n),y(n); integer n,sym(3*ns),ns)
+@item sm_points(x,y,n)
+Draw points (real x(n),y(n); integer n)
+@item sm_ptype(pp,n)
+Set point type - vector form (real pp(n); integer n)
+@item sm_putlabel(i,str)
+Position a label (integer i; character str)
+@item sm_redraw(i)
+Wait for input on file descriptor i (integer i). 
+@item sm_relocate(x,y)
+Relocate in user coords (real x,y)
+@item sm_set_ctypes(cols,n)
+Set SM's permitted colours to cols (real cols; integer n)
+@item sm_shade(delta,x,y,n,type)
+Shade a region (integer delta; real x(n),y(n); integer n,type)
+@item sm_ticksize(xs,xb,ys,yb)
+Set ticksize (real xs,xb,ys,yb)
+@item sm_window(nx,ny,x,y,x2,y2)
+Select a window (integer nx,ny,x,y,x2,y2)
+@item sm_toscreen(ux,uy,sx,sy)
+Convert to screen coordinates (real ux,uy, integer sx,sy)
+@item sm_xlabel(str)
+Draw x-axis label (character str)
+@item sm_ylabel(str)
+Draw y-axis label (character str)
+@end table
+
+@code{sm_device} returns 0 if it opens the requested device, or -1 if it
+fails. You must declare @code{sm_device} as returning integer, of course.
+@code{sm_curs} returns after you hit any key, returning the coordinates of
+the point, and the key struck as an integer (e.g.  `a' as 97 in ascii).
+In C, all three arguments are pointers, two to float and one to int.
+@code{sm_defvar} defines a variable, it is identical to the interactive command
+@code{DEFINE name value}. It is only used to certain define variables that are
+significant to SM, currently @code{file_type}, @code{graphcap},
+@code{TeX_strings}, @code{x_gutter}, and @code{y_gutter}.
+Fortran users might or might not need to double @code{\}s in @TeX{} labels,
+depending on the foibles of your compilers (you are more
+likely to need the doubled @code{\\} under unix).
+
+@code{sm_plotsym} is like first
+using the @code{PTYPE @{ ... @}} command to define @code{sym}, and then
+@code{POINTS} to plot x against y. The @code{sym} array consists of triples
+of integers, @code{(move x y)} where move is 1 to move the plot pointer,
+0 otherwise. This is not quite the same as the interactive command,
+but doesn't involve any characters. The @code{move} integer may not be omitted.
+The `file descriptor' that @code{sm_redraw} demands will almost always be
+@code{0} (standard input) on unix boxes; if it is needed by VMS or
+other operating systems I will add a note here when I write the device driver.
+
+@code{sm_shade} shades the inside of the curve specified by x and y if type is
+1, or the area below a histogram specified by @code{x} and @code{y} if type is 2 (or -2 if
+the histogram is rotated by 90 degrees).
+The line spacing in screen coordinates is delta.
+The second and third arguments (@code{x, y}) should be pointers to @code{REAL} if called from C.
+
+You can use @code{sm_toscreen} to convert from user to screen coordinates
+(which run from 0 to 32767, and are used by @code{sm_grelocate}).
+The second pair of arguments should be pointers to int if called from C.
+
+@code{sm_window} takes an extra two arguments over the interactive version;
+they are the values that you'd specify using the @code{#:#} form of
+window specification; for example, @code{WINDOW 4 5 1 2:3} corresponds to
+the call @code{sm_window(4,5,1,2,1,3)}.
+
+The colour functions are @code{sm_ctype} and @code{sm_ctype_i}, equivalent
+to @code{CTYPE name} and @code{CTYPE integer} respectively, and
+@code{sm_set_ctypes}, equivalent to the numerical form of @code{CTYPE = expr}.
+
+You can get at most of SM's `special' variables (e.g. expand) directly
+by looking at C globals (these may look like common blocks to fortran,
+it depends on your compiler); look in the file @file{src/plotsub/set.c}
+for details. Alternatively (and less involved in SM's insides, if a
+bit slower), you can use @code{sm_get_variable}, which will return values
+as floating point numbers.
+
+The functions to manipulate 2-dimensional data are described in the next
+section.
+
+@node Functions (2-D), Callable Parser, Functions (1-D), Calling SM
+@appendixsubsec Function Definitions: 2-D
+
+The use of the 2-D functions may require a little more explanation.
+If you want to use SM to read your data,
+producing contour plots is very similar to doing so interactively, with the
+difference that instead of defining the variable @code{file_type}, you
+must call the function @code{sm_filetype} with the desired value as the
+argument before reading the data. This is equivalent to calling
+@code{sm_defvar} to
+define the variable @code{file_type}, and is only supported for
+backwards compatibility.
+As an alternative, you can fill your own data array,
+and pass it to SM to be contoured with @code{sm_defimage}.
+@findex calling SM, 2-D function definitions
+
+Please note: the image data that you provide to SM should be 4-byte floats
+even if you are built SM to use 8-byte (double) floating point numbers.
+@findex double precision
+
+The function calls follow (again in fortran), followed by some explanation.
+@table @code
+@item sm_contour
+Contour current 2-D image
+@item sm_defimage(arr,x1,x2,y1,y2,nx,ny)
+Define an image (real arr(nx,ny),x1,x2,y1,y2; integer nx,ny)
+@item sm_delimage
+delete current 2-D image
+@item sm_filetype(type)
+Set 2-D filetype (character type)
+@item sm_levels(l,n)
+Set levels for contour (real l(n); integer n)
+@item sm_minmax(x,y)
+Get minimum and maximum of image (real x,y)
+@item sm_readimage(file,x1,x2,y1,y2)
+Read a 2-D image (character file; real x1,x2,y1,y2)
+@end table
+The translation to other languages is not quite as simple as above.
+In C, @code{sm_minmax} expects to be passed pointers to floats, and
+the first argument to @code{sm_defimage} is not a 2-D array, but an array of
+pointers to the rows of the image. @code{x1, x2, y1, y2} specify the limits
+as in the interactive @code{IMAGE} command; if they are set to be 0.0 then
+the dimensions of the array will be used. As an example, again in non-VMS
+fortran:
+@findex calling SM, 2-D example
+@findex example, calling 2-D SM
+@example
+        integer NXY
+        parameter (NXY=20)
+        integer sm_device
+        integer i,j
+        real z(NXY,NXY),lev(NXY)
+c
+        do 2 i=1,NXY
+           do 1 i=1,NXY
+              x(i,j) = (i-NXY/2)**2 + (j-1)**2
+1          continue
+2       continue
+c
+        if(sm_device('postscript latypus') .ne. 0) then
+           print *,'Can''t open printer'
+           stop
+        endif
+        call sm_graphics
+        call sm_limits(-1.,21.,-1.,21.)
+        call sm_box(1,2,0,0)
+        call sm_defimage(z,0.,20.,0.,20.,NXY,NXY)
+        call sm_minmax(amin,amax)
+        do i=1,NXY
+           lev(i)=amin + (i - 1.)/(NXY - 1)*(amax - amin)
+3       continue
+        call sm_levels(lev,NXY)
+        call sm_contour
+        call sm_hardcopy
+        call sm_alpha
+        end
+@end example
+
+@node Callable Parser, Why call sm_alpha?, Functions (2-D), Calling SM
+@appendixsubsec Calling the SM interactive Parser from Programmes
+
+It is also possible to call the SM parser directly from your own programmes. 
+This is usually done by people who have large data arrays that they want to 
+plot, so we have also provided a call to define your arrays as SM vectors. 
+To use this, your SM guru must build an extra library, (called 
+@file{libparser.a} on unix systems). This is done with the command
+@example
+        make Parser
+@end example
+@noindent
+in the top level SM source directory. If this has been done, you can link
+the parser into your code by including the flag @code{-lparser} before
+the other SM libraries (but after any @code{-L} flags). The programmes
+@file{interp} and @file{finterp} in the @file{callable} directory provide
+examples of calling SM's parser; @file{finterp.f} looks like:
+@example
+      real a(10)
+      integer i
+
+      do 1 i=1,10
+         a(i) = i
+ 1    continue
+
+      call sm_array_to_vector(a,10,'xyz')
+      print *,'Calling SM parser...'
+      call sm_parser('-q')
+      print *,'Exited parser'
+      end
+@end example
+@noindent
+Here the array @code{a} (with 10 elements) is to be called @code{xyz} in SM,
+and SM is to be invoked with the command line options @code{-q}. You can of
+course define as many vectors as you feel like, but using @code{DELETE} to
+delete them from the parser is a serious error (i.e. don't!).
+
+@table @code
+@item sm_array_to_vector(arr,n,name)
+Define an SM vector called name to have the values of the
+array arr. (real arr(n); int n; character name).
+
+@item sm_parser(args)
+Start up the SM command parser as if you had started SM interactively with
+command line arguments args, but with some vectors predefined (those that
+you defined using @code{array_to_vector}) (character args).
+@end table
+
+@node Why call sm_alpha?, Fortran Names, Callable Parser, Calling SM
+@appendixsubsec Why do I have to call @code{sm_alpha}, @code{sm_graphics}, @code{sm_gflush}, and @code{sm_redraw}?
+
+The question sometimes comes up, `Why do I have to bother with these
+calls @code{sm_alpha}, @code{sm_graphics}, @code{sm_gflush}, and
+@code{sm_redraw}? After all, other graphics libraries don't require them.'
+
+The answer is that it all depends on how sophisticated and device
+dependent you want to be.
+
+If you are using something like an xterm to plot to, then @emph{yes},
+you do need to explicitly switch between graphics and alpha screens --
+or else you'll get gibberish on the text screen (something like
+@code{`?_"s#M"s>H"s#M#b#M!s#F!s#F0"s$X"}) and no graphics on the
+graphics screen, or else your graphs and your input commands (and some
+gibberish to handle the screen editor) mixed together on the graphics screen.
+Of course the SM routines could have done the switches for you,
+but if the mode were
+changed everytime that it @emph{might} need switching, you'd get an immense
+amount of mode switching. Why would that matter? Try running the code on
+a terminal like a vt240 that physically has only one screen.
+
+If you didn't care about devices like @code{xterm} and were determined
+to only use devices like @code{x11} or @code{sgi} or @code{postscript}
+you wouldn't have to worry about any of this.
+
+Next to @code{gflush}. For efficiency, SM doesn't guarantee that every
+write request is actually written to the screen when received, so at the
+end of a function call there could be lines or points that haven't yet
+reached the screen.  @code{gflush} deals with this by flushing the
+graphics buffers, thus
+ensuring that all pending writes to the screen are completed. If you
+don't care about possible missing points, don't worry about it.
+
+Finally @code{redraw}. On a traditional terminal such as an I^2S or a
+tektronics 4010, there was no need to worry about other windows
+appearing on top of your beautiful graphics window and erasing what was
+there; for some devices such as @code{xterm} there is no problem as the
+terminal emulator is always looking at the screen, like a faithful dog,
+waiting for you to type something or for one of its screens to get
+corrupted. In the old days of sunview, Sun had hacked the lowest level
+system calls (read etc.) to allow an application programme to call the
+equivalent of @code{redraw} automatically (well, under a reasonably
+common set of conditions). But if you are running on something like an
+X11 display or a GL display on an SGI, there is @emph{no-one} looking
+out for events that erase your window, and you have to do it
+yourself. If you don't care about refreshing the screen when raised to
+the top of the window stack, there's no need to worry about @code{redraw}.
+
+So all these complications with @code{alpha}, @code{redraw}, and friends
+are due to SM being designed to handle all the possible nasty cases.  If
+you use SM interactively, it is all done for you, but if you want to
+call SM functions you have to decide how much responsibility you want to
+take.
+
+Of course, you can write a trivial wrapper about each SM primitive that
+calls @code{sm_graphics} before calling (e.g.) @code{sm_points,} then
+@code{sm_gflush} and
+@code{sm_alpha} just before returning. 
+In a similar way, you could write a general i/o function that calls
+@code{sm_gflush}
+then @code{sm_alpha}, then prompts you, then calls @code{sm_redraw},
+then reads the reply, then calls @code{sm_graphics}. But I don't think that
+the SM primitives should do it for you.
+
+@node Fortran Names, , Why call sm_alpha?, Calling SM
+@appendixsubsec How to Choose the Name for Fortran Subroutines
+
+As discussed above, the names used for SM callable functions from fortran
+are, in general, different from those used in (almost?) all other languages,
+as fortran's calling conventions are different, so we have to provide interface
+code (in the file @file{sm/src/plotsub/interface.c}). The SM function
+@code{sm_func} may be called as @code{AAAsm_funcBBB} where @code{AAA} and
+@code{BBB} are the values of the C-preprocessor macros @code{FORTRAN_PREPEND}
+and @code{FORTRAN_APPEND} respectively; their default values are nothing and
+@code{_}. If you want to change this, edit @code{sm/src/options.h} and
+define the values that you desire. Note: with C compilers that don't adhere
+to the C89 ansi standard, you are restricted to the values @code{f} and
+@code{_} for @code{PRE-} and @code{APPEND}.
+
+After changing @code{options.h} (or @code{options.skl} if you want your
+changes to survive the running of @file{set_opts}), rebuild SM and you
+should be in business.
+
+@node Grammar, 2-D Graphics, Calling SM, Appendices
+@appendixsec The SM Grammar
+Previous editions of this manual included a printed copy of the SM
+grammar, prepared directly from the source code using the @code{get_grammar}
+utility.
+This was helpful in understanding otherwise bizarre objections to your
+favoured command, as it specified exactly what SM would accept,
+but used a lot of paper. We have therefore omitted it from this edition,
+but you are welcome to make yourself a copy.
+
+@node 2-D Graphics, Tables, Grammar, Appendices
+@appendixsec Two-Dimensional Graphics
+
+There is limited support for 2-dimensional graphics in SM,
+@findex 2-dimensional graphics
+and we do not expect to make many extensions in this area. Currently it is
+possible to read an unformatted image, to draw contours, to generate
+a Floyd-Steinberg dithered image, to extract values
+from the image into vectors, and to obtain image values with a cursor.
+Previous editions of this manual (prior to version 2.3) have traditionally
+said: `We expect to support half-tone imaging in the nearish future';
+as of this release there is a macro (called @code{greyscale} and written
+by Gabor Toth here at Princeton) that draws reasonably efficient
+grey scale images on any supported output device.
+
+The problem of specifying data formats for images is difficult, and we have
+adopted an approach of using a `filecap' file to describe the unformatted
+files. This allows the user to write the file using C or Fortran (or,
+presumably, lisp) and then use SM to read the data.
+@findex 2-dimensional graphics, file_type
+The name of the entry in the @code{filecap} file is given by the
+variable @code{file_type}, which may be given in your @file{.sm} file
+if you use the standard @code{startup} macro.
+@findex .sm, file_type
+@findex file_type
+@findex 2-dimensional graphics, file format
+The format of data on disk is first the x- and y- dimensions of the
+image, then the data in
+row-ascending order. The exact statements used to write the data may depend
+on the chosen value of @code{file_type} (or vice-versa). A description
+of the @code{filecap} fields comes at the end of this appendix; most
+users should never have to change this file.
+
+It is also possible to read data from a formatted file and create an image
+inside SM, for example if @code{x} and @code{y} are integers in the
+range 0-9:
+@example
+IMAGE (10,10)                   # declare a 10*10 array
+READ @{ x 1 y 2 vals 3 @}         # read some data
+SET IMAGE(x,y) = vals           # and put it into the image
+@end example
+
+The command used to read an image is IMAGE, and you may optionally
+specify the x and y range covered by the data
+(e.g. IMAGE @code{datafile xmin xmax ymin ymax}; this also works with
+declarations like the one in the previous paragraph). Only the region of the
+image lying within the current limits is plotted when contouring - just
+like any other graphics operation in SM. Images may be deleted
+with the DELETE IMAGE command. To extract values from an image,
+use the special expression @code{IMAGE(vec_x,vec_y)} which has the
+value of the image at the points (vec_x,vec_y).
+
+You can extract variables from the image's header using the command
+@code{DEFINE name IMAGE}. See the discussion of filecap if you need
+to know what variables can be retrieved this way.
+
+If you want to use non-interactive SM (i.e. write your own command
+interpreter), there is a call (@code{defimage}) to define your data array
+to the contouring package, but this is of course not available interactively.
+
+@appendixsubsec Filecap
+Filecap is similar in graphcap or the Unix termcap, and in fact the
+`filecap' entries may be physically in the same file as graphcap (i.e.
+added as if they were graphcap entries; of course an attempt to say
+@code{device fits} will lead to confusion...).
+Filecap can be specified as a list of files to be searched in order.
+The fields in filecap are used to specify the data type of the file,
+the record format of the file (record-length, inter-record gaps,
+etc.) and the header used (length of header, offset of desired items).
+Note that these are `unformatted' files, as written by C write() or
+fortran write(num) statements.
+
+@findex filecap, definition
+@findex examples, filecap
+The current filecap is as follows:
+@example
+#
+# Filecap describes unformatted file formats to SM. The syntax is
+# identical to termcap or graphcap files.
+#
+c|C|C files:\
+        :HS#8:nx#0:ny#4:
+ch|CH|C files with headers:\
+        :HS#24:nx#0:ny#4:x0#8:x1#12:y0#16:y1#20:
+fits|cfits|FITS|CFITS|C FITS files:\
+        :DA=fits:RL=2880:
+no_header|Files with no header, will prompt for nx, ny:\
+        :HS#0:
+unix|UNIX|Fortran unformatted files under Unix on a Vax:\
+        :HS#-1:nx#0:ny#4:RS#4:RL#-1:RE#4:
+unix_int|UNIX_INT|Like unix, but integer*4:\
+        :DA=int:tc=unix:
+unix_short|UNIX_SHORT|Like unix, but integer*2:\
+        :DA=short:tc=unix:
+vms_var|VMS_VAR|Fortran unformatted under VMS, recordtype=variable:\
+        :HS#8:nx#0:ny#4:
+vms_fixed|VMS_FIXED|Fortran unformatted under VMS, recordtype=fixed:\
+        :HS#-1:RS#0:RL#-1:RE@:nx#0:ny#4:
+# This seems to be correct, based on one example
+vms_direct:VMS_DIRECT|Fortran unformatted, direct access, under vms:\
+        :HS#8:RS#0:RE#0:nx#0:nx#4:
+@end example
+@noindent
+Comment lines start with a #, continuation lines start with white space
+(a tab or a space) and \ may be used to continue an entry on to the
+next line.
+The first few fields in an entry are separated by @code{|}, and are alternative
+names for the same entry. For example,
+fortran unformatted files under Unix may be referred to as @code{unix} or
+@code{UNIX}. Fields are separated by colons, and are of the form
+@code{:CC#nnn:} for numbers, and @code{:SS=str:} for strings. Omitted fields
+may be specified as @code{:CC@@nnn:}, or simply omitted.
+Filecap capabilities currently used are:
+@table @code
+@item DA (DAta type)
+Type of data in file (string)
+@item FS (File Start)
+Unwanted bytes at start of file
+@item HS (Header Size)
+Size of header
+@item RE (Record End)
+Unwanted bytes at end of record
+@item NS (No Swap)
+Don't swap bytes for FITS files
+@item RL (Record Length)
+Number of useful bytes per record
+@item RS (Record Start)
+Unwanted bytes at start of record
+@item SW (SWap)
+Byte swap 2 by integer data, and byte-and-word swap 4 by integers.
+@item nx (Number X)
+Offset in file of X size of data
+@item ny (Number Y)
+Offset in file of Y size of data
+@item x0 (X 0)
+Coordinate at start of X axis
+@item x1 (X 1)
+Coordinate at end of X axis
+@item y0 (Y 0)
+Coordinate at start of Y axis
+@item y1 (Y 1)
+Coordinate at end of Y axis
+@end table
+In addition, @code{HH} is supported as an archaic form of @code{HS.}
+
+In terms of these quantities a file will look like this:
+@tex
+\medskip
+\vbox{\offinterlineskip\def\dvrule{\vrule\hskip 1pt\vrule}
+\hrule
+\hbox{\strut
+\dvrule \quad FS \quad \dvrule \quad HS \quad \dvrule
+\quad RS \quad \vrule \qquad RL \qquad \vrule \quad RE \quad \dvrule
+\quad RS \quad \vrule \qquad RL \qquad \vrule \quad RE \quad \dvrule
+\quad ...
+}\hrule
+}
+The distinction between single and double lines is purely visual.
+@end tex
+@ifinfo
+@example
+-------------------------------------------------------
+|      |      |     :    :     |     :    :     |
+|  FS  |  HS  |  RS : RL : RE  |  RS : RL : RE  | ...
+|      |      |     :    :     |     :    :     |
+-------------------------------------------------------
+@end example
+@noindent
+The distinction between solid and dotted lines is purely visual.
+@end ifinfo
+As mentioned below, @code{HS} can be negative and is then taken as the record
+length of the header @code{RL_H}, in which case the file will be
+like:
+@tex
+\medskip
+\vbox{\offinterlineskip\def\dvrule{\vrule\hskip 1pt\vrule}
+\hrule
+\hbox{\strut
+\dvrule \quad FS \quad \dvrule
+\quad RS \quad \vrule \qquad RL$_{\rm H}$ \qquad \vrule \quad RE \quad \dvrule
+\quad RS \quad \vrule \qquad RL \qquad \vrule \quad RE \quad \dvrule
+\quad RS \quad \vrule
+\quad ...
+}\hrule
+}
+@end tex
+@ifinfo
+@example
+--------------------------------------------------
+|      |     :      :     |     :    :     |
+|  FS  |  RS : RL_H : RE  |  RS : RL : RE  | ...
+|      |     :      :     |     :    :     |
+--------------------------------------------------
+@end example
+@end ifinfo
+Note that the first real data record begins with an @code{RS} -- this means
+that
+if you are writing fortran you @emph{must} write the header in a
+different write statement than the one that you use to write the data
+(i.e. @code{write(fd) nx,ny,arr} will not work).
+
+Most parameters are optional, and will default to 0. If RE or RS is
+specified, you must give RL as well. If you specify it as negative, then
+we'll look for it from the operating system.  You must provide a value
+for HS (or HH if you're old fashioned), if it is negative we'll assume
+that even the header has a record structure, with RS and RE just like
+any other record. Its record length will be taken to be RL, if RL is
+positive, otherwise we'll find it from the operating system. If HS and
+RL are both negative there is no reason why the record length of the
+header should be the same as that of the data.
+
+If neither nx nor ny
+are present in the graphcap entry you will
+be prompted@footnote{in fact they will be read from a macro
+or the command line without prompting if they are available; try
+@code{define file_type no_header image file \n 10 20}}
+for the x and y dimensions of the file, otherwise they
+must both be present.
+If they are negative
+they are taken to be the negation of the true dimension (so a filecap entry
+@code{:ny#-6:} specifies that the y-dimension of the data is 6), but usually
+they are taken as the offsets of the values of the x and y dimensions in
+the file, relative to the start of the header (if you set HS to be zero
+you can specify nx and ny on the command line, but they must be on a
+separate line, either a real separate line, or following a \n).  Note
+that HS excludes
+FS, so HS will usually be 2*sizeof(int) irrespective of the value of
+FS, and nx will usually be 0.  If HS is negative, then the nx and ny
+offsets also ignore RS,
+i.e.  nx is still usually 0.
+
+As an alternative to specifying the actual file sizes as negative
+integer values of nx or ny (e.g. @code{:nx#-10:}) you can simply specify
+them as positive string values: @code{:nx=10:}. Note how this differs
+from @code{:nx#6:}.
+
+Possibilities for @code{DA} are @code{char}, @code{float} (default),
+@code{int},
+@code{long}, and @code{short}, all as in C, and also @code{fits} for FITS
+format data. (If you don't know what FITS format is, don't worry about
+it. It's a style of header and record structure used for data
+transport in astronomy@footnote{
+The usual reference is Wells, D.C., et al. Astron. Astroph. Suppl, @b{44}
+363 (1981), although FITS is in fact becoming a national standard in the US}.
+If you do know about FITS, then we assume that
+each record is 2880 by long, although possibly with RS and RE non-zero.
+The header is processed for the size of the file and the value of
+BITPIX. If the file is not SIMPLE, it is taken to be 4 by floating
+point data. CRPIX, CRVAL, and CDELT
+are interpreted correctly, as are BZERO and BSCALE. X0, x1, y0,
+and y1 are specified as the keywords X0, X1, Y0, and Y1 respectively,
+and take preference over CRPIX etc.
+FITS files on a machine with vax byte order are supposed to be byte
+swapped, but you can override this by specifying the @code{NS} capability
+which stops SM from doing any byte swapping).
+If you specify @code{SW} it takes preference over any other instructions
+about byte swapping and forces byte-swapping for 2 byte (short) data,
+and byte-and-word swapping for 4 byte (int) data.
+If @code{x0} and @code{x1}, or @code{y0} and @code{y1} are omitted,
+the range of
+values on the appropriate axis is taken to be 0 to nx-1 (or ny-1).
+You can override these values with the @code{IMAGE} command.
+The values of @code{X0} (and so on) can be obtained directly using
+@code{DEFINE X0 IMAGE}; Other values can be specified in @file{filecap},
+for example a filecap entry @code{:aa#24:} specifies that
+@code{DEFINE aa IMAGE} should recover the (floating-point) number stored
+at byte offset 24. Because of the way that filecap files work, you are
+restricted to two-character names.
+If you are using FITS files, all the keywords from the header are
+available, but you should remember that SM is case sensitive.
+
+For example, suppose I wrote a file using the Unix f77 compiler, with
+some code that looked like:
+@example
+        integer *4 nx,ny,arr(10,20)
+c
+        nx = 10
+        ny = 20
+        write(8) nx,ny
+        write(8) arr
+@end example
+@noindent
+(Omitting opening unit 8 as an unformatted file, and filling
+the array with data). Then I could read it in SM by defining
+@code{file_type}
+to be unix_int. The filecap entry indicates that the length of the header
+is to be obtained from unix (in fact from the file, it'll be the
+record length of the header), as is the record length.
+Both the start-of-record (RS) and end-of-record (RE) gaps are 4 by
+long (they in fact contain the record length, but you needn't know that).
+The number of x-records is at zero offset in the file,
+and y-records is at offset 4. In other words, allowing for FS being 0 and
+RS being 4,
+nx occupies bytes 4-7 in the file, and ny 8-11.
+The data is taken to be 4-byte integers (integer*4 to fortran).
+In fact, the first record consists of only the values of
+nx and ny, so the record length of the first record is 8 by, and part
+of an equivalent filecap entry would be
+@example
+:FS#4:HS#12:
+@end example
+@noindent
+where I have interpreted RS as FS, and added the RE onto the end of
+the header length HS. If I had written the data out line-by-line in a
+do loop, the file type would still be unix_int, but the record length
+actually used by SM in reading the file would be different (@pxref{Image}).
+
+As another example, I use an image processing system called Wolf that used
+to use files with the arcane structure of 200 bytes of header, then
+the x- and y-size of the file, given as ints, then more header up to a
+total offset of 1024 bytes from the start of the file, then the data
+written as short integers. I could write a header with code that looked
+somewhat like (omitting all error checking):
+@example
+        int fd,i;
+        int xs = 20,ys = 10;
+        short arr[10][20];
+        @dots{}
+        lseek(fd,200L,0);
+        write(fd,(char *)&xs,sizeof(int);
+        write(fd,(char *)&ys,sizeof(int);
+        lseek(fd,1024L,0);
+        for(i = 0;i < ys;i++) write(fd,(char *)arr[i],xs*sizeof(short));
+@end example
+@noindent
+The corresponding filecap entry is
+@example
+wolf|Wolf-IfA files:\
+        :HS#1024:nx#200:ny#204:DA=short:
+@end example
+@noindent
+which is pretty simple really.
+
+@node Tables, Termcap, 2-D Graphics, Appendices
+@appendixsec Reading and writing tables
+
+SM is able to read a variety of table formats, but the only
+one of practical interest appears to be FITS binary tables.  If
+you disagree with this statement and either have problems or
+a section to contribute to this appendix, please send RHL mail.
+
+The relevant commands are given in the sections on the @code{TABLE}
+(@pxref{Table}) and @code{WRITE} (@pxref{Write}) commands.
+
+@menu
+* Reading Tables::	How to read tables
+* Writing Tables::	How to read tables
+@end menu
+
+@node Reading Tables, Writing Tables, , Tables
+@appendixsubsec How to read tables
+@findex tables, reading
+@findex read, table
+
+If you want to read variables from the
+header, you can use the @code{define var image} command; so to read
+both data and variables you'd say something like:
+@example
+table 0 table-file.fit
+read table @{ x y @}
+table 4
+local define RDL image
+echo RDL = $RDL ($(dimen(x)) point)
+@end example
+@noindent
+This reads @code{x} and @code{y} from the primary data unit (PDU; that's
+what the 0 means), and then the variable RDL from the fourth data unit.
+If you omit the @code{0} it'll be assumed, unless the PDU is empty in
+which case SM'll read the first real table instead.
+
+@node Writing Tables, , Reading Tables, Tables
+@appendixsubsec How to write tables
+@findex tables, writing
+@findex write, table
+
+Writing tables is basically pretty simple, e.g.
+@example
+local define tab "table.fits"
+local set x = 1,10  local set y=sin(x)
+!rm -f $tab
+write table $tab @{ x y @}
+
+set x = x concat 15 + x  set y = y concat -y
+local set z = 10*x
+write table + $tab @{ x y z @}
+@end example
+
+If you don't define the variable @code{noclobber}, you don't need
+to explicitly delete the file before writing your first sert of data.
+@findex noclobber, and tables
+
+If you want to put variables into the headers, and care about which
+data unit they go in, things look more complicated (but they really aren't
+too bad):
+
+@example
+local define tab "table.fits"
+local set x = 1,10  local set y=sin(x)
+table delete
+define RDL local
+image define RDL "Rowan"
+!rm -f $tab
+write table $tab @{@}
+table delete
+
+write table + $tab @{ x y @}
+table delete
+
+set x = x concat 15 + x  set y = y concat -y
+local set z = 10*x
+define LML local
+image define LML "Mummy"
+write table + $tab @{ x y z @}
+@end example
+
+Here the @code{table delete} commands are being used to undefine
+@code{IMAGE} variables.  Note that I explicitly wrote an empty primary
+data unit (PDU), whose only interesting content is the variable @code{RDL}
+
+@node Termcap, New Devices, Tables, Appendices
+@appendixsec Termcap -- A Terminal Database
+@findex terminals, description for SM
+@findex termcap, description of file
+Termcap is a Unix idea, that makes it possible to write software that
+runs on a wide range of different terminals. The implementation that
+SM uses contains no Unix source code. The idea is similar to
+graphcap or filecap -- each property of the terminal is given as a
+field in a file. For example, the string to clear to end of line is
+called @code{ce}, and for ansi terminals is given as @code{ce=@key{control-[}[K}. The
+format for termcap files is described under
+`graphcap', which is identical. Our termcap is identical to the Unix
+one, so for details see section 5 of the Unix manual. The file to use
+as a termcap file is specified as @code{termcap} in your @file{.sm}
+file, or as the environment variable @code{TERMCAP} (logical variable
+to VMS). If SM can't open @code{TERMCAP} as a file, it is
+taken to be the value of the entry for your terminal. If it doesn't
+begin with a colon, it is treated like a termcap file, and searched
+for the desired terminal. If it does begin with a colon, it is simply
+taken to be the termcap entry to use.
+A @code{TERMCAP}
+variable takes precedence over an entry in your @file{.sm} file. As for
+graphcap, a list of termcap files can be specified, to be searched in order.
+
+A full termcap entry can be pretty long, but fortunately SM
+only uses a small subset. (The rest are needed by full scale screen
+editors, but we haven't written one.) In particular we use:
+@table @code
+@item ce (Clear End)
+Delete to end of line
+@item ch (Cursor Horizontal)
+Move cursor within line
+@item cm (Cursor Movement)
+Move cursor around screen
+@item cn (ColumNs)
+Number of columns on screen
+@item dc (Delete Character)
+Delete character under cursor
+@item is (InitialiSe)
+Initialise terminal
+@item ks (Keypad Start)
+Initialise Keypad
+@item ks (Keypad End)
+Undo Keypad Initialisation
+@item kd (Kursor Down)
+Move cursor down one character
+@item kl (Kursor Left)
+Move cursor left one character
+@item kr (Kursor Right)
+Move cursor right one character
+@item ku (Kursor Up)
+Move cursor up one character
+@item k1 (Key 1)
+Key sequence emitted by PF1 key (also @code{k2}, @code{k3}, and @code{k4})
+@item li (Lines)
+Number of lines on screen
+@item pc (Pad Character)
+Pad character, if not NIL
+@end table
+All of these are strings except @code{co} and @code{li} which expect
+numbers, and @code{pc} which expects a single character.
+The editor uses all of these except @code{co}, although the
+@code{k} ones are only provided as a convenience to you, mapping the
+arrow keys. In fact, these arrow keys may supersede desired bindings
+such as @key{control-K} to delete to end of line (e.g.   on a televideo 912). If
+this happens, use the @code{EDIT} or @code{READ EDIT} commands to fix
+things up.
+
+The cursor addressing strings @code{ch} and @code{cm} use a variant of
+the C printf %. Consider the string as a function, with a stack on
+which are pushed first the desired column, and then the desired line
+(so the line is on top).
+The possible % formats operate on the stack, and pop it after output.
+@table @code
+@item d
+As in printf, zero origin
+@item 2
+Like %2d
+@item 3
+Like %3d
+@item .
+Like %c
+@item +x
+Add x to value, then `%.'
+@item >xy
+If value > x add y (no output)
+@item r
+Interchange line and column (no output)
+@item i
+Increment line and column by 1 (no output)
+@item %
+Output a single %
+@end table
+We do not support @code{%n}, @code{%B}, or @code{%D} out of pure laziness.
+A couple of examples might help. To go to (5,60) a vt100 expects to receive
+the string @code{@key{control-[}[5;60H}, so the termcap entry reads
+@code{:cm=\E[%i%d;%dH:}. We need the @code{%i} to go to one-indexed
+coordinates, and the @code{escape} is written @code{\E}. The @code{:}'s delimit
+the termcap entry. A Televideo 912
+expects to be given first @code{@key{control-[}=}, then
+the coordinates as characters, where ` ' is 0, `!'
+is 1, and so forth through the ascii character set. To convert a given
+number to this form we add ` ', so the termcap entry is
+@code{:cm=\E=%+ %+ :}.
+
+If an entry begins with a number, it gives the number of milliseconds
+of padding that the terminal requires (it is optionally followed by an
+*, which we can and do ignore). If the terminal requires a pad character
+that is not simply ascii @code{NIL} it should be given as @code{pc}, so
+to use `a' as a pad character specify @code{:pc#97:}. The
+baudrate is taken to be 9600, unless you specify it as the @code{ttybaud}
+variable in your @file{.sm} file. We have never yet seen SM
+have any trouble with padding, so we wouldn't worry about any of this
+if we were you.
+@findex .sm, ttybaud
+@findex edit, padding
+
+You might wonder why we need both @code{ch} and @code{cm}. The simple
+answer is that we don't, but that we do want one of them. Because @code{cm} moves the cursor to a specific line, its use requires that
+SM remember which line you are on which can be tough what with
+switching to and from graphics mode. We therefore assume that you are
+on the last line of the terminal, as set by @code{li} or explicitly by
+the @code{TERMTYPE} command. If you provided @code{ch} this problem
+wouldn't arise but many terminals don't support such a capability and
+we have to code around this deficiency. To summarise: use @code{ch} if
+you can, failing that use @code{cm}.
+
+There is a problem with using the last line of the screen as the
+SM command line, and this is that some terminals use the same
+screen for graphics as for text, and your graph will merrily scroll
+away as you type. The graphcap @code{GD} (Graphics Disable) command can
+be set to take you to the top of the screen, but @code{cm} won't keep
+you there. Your only chance is to disable cursor motion, either by
+setting
+@code{ch} to `disabled', or by specifying a negative screen size to
+@code{TERMTYPE} which has the same effect. You can still use the
+editor, but it'll be slower. If you still have trouble, try
+@code{TERMTYPE dumb}, which really is a bit brain damaged, or
+@code{TERMTYPE none} which disables the editor entirely.
+@findex weird, alpha cursor being
+@findex scrolling, graph disappears off screen
+
+@node New Devices, Libraries, Termcap, Appendices
+@appendixsec New Devices and New Machines
+@appendixsubsec Adding New Devices
+
+As we have discussed extensively (@pxref{Graphcap}), most plotting devices can
+be accommodated within the framework of stdgraph/graphcap without
+writing a line of C; raster devices can use the raster device driver.
+Sometimes, however, this is not possible and you
+must write a real driver. An example would be making SM run
+native under X11; running under a terminal emulator can be done
+with graphcap.
+
+If you do make any changes, write any new drivers, or modify graphcap
+(except trivially) @emph{please} send us copies of your modifications.
+
+Let us assume that you really do need a new driver, how do you go
+about it?
+@findex device, adding new ones
+SM communicates with devices solely through a graphcap entry,
+some external variables
+(defined in sm.h) and a structure called
+@code{DEVICES} which is defined in @code{devices.h} and declared in
+@code{plotsub/devices.c}.
+
+When you issue a @code{DEVICE devname args}
+command, the stdgraph driver is called with the string @code{devname args},
+and it opens the graphcap entry for @code{devname}. If it finds an entry
+of the form @code{:DV=driver:} it tries to find a hardcoded device driver
+called @code{"driver"} (you'll see in a moment where the names come
+from). If it can find such a driver it calls its setup function (to
+be defined in a moment) with @code{args} as an argument.
+@footnote{If the @code{DV} entry contains an embedded space, only the
+first word is used to choose a device; the rest is treated as if it
+was typed as part of a DEVICE command. For example,
+if the graphcap file contains the entry
+@code{svga4|svgalib, mode 4:DV=svgalib -m 4:},
+the command @code{DEVICE svga4} is
+equivalent to @code{DEVICE svga -m 4}.}
+@findex default arguments for DEVICE
+Your device
+driver is now in charge, and no more stdgraph routines are called
+until your device is closed; after you return from your close function
+stdgraph's close function is called to close the graphcap descriptor.
+What do you have to remember from this paragraph? That you need a
+graphcap entry, if only a trivial one along the lines of
+@example
+my_device|all_mine:DV=my_driver:
+@end example
+@noindent
+which associates the driver @code{my_driver} with the device referred
+to as either @code{my_device} or @code{all_mine}.  Because stdgraph's
+@code{stg_open} and @code{stg_close} functions are called around your
+device code
+the standard graphcap support for @code{OW}, @code{IF}, @code{DC}, @code{OF},
+@code{SY}, and @code{CW} is automatically provided if you want it; see
+the imagen
+driver and graphcap entries for an example.  You might also want to
+remember that you can directly access any graphcap entry for your
+device from within your driver, using the functions @code{ttygets},
+@code{ttygetr}, @code{ttygeti}, and @code{ttygetb}.
+
+The current definition of @code{DEVICES} looks like this:
+@example
+typedef struct @{             /* output device dependent functions */
+   char d_name[40];           /* name of device */
+   int (*dev_setup)();        /* initialisation  */
+   void (*dev_enable)(),      /* enable graphics */
+   void (*dev_line)(),        /* draw a line from x1, y1 to x2, y2 */
+   void (*dev_reloc)(),       /* relocate current position */
+   void (*dev_draw)(),        /* draw a line from current pos to x,y  */
+   int (*dev_char)(),         /* hardware characters  */
+   int (*dev_ltype)(),        /* hardware line type */
+   int (*dev_lweight)(),      /* hardware line weight */
+   void (*dev_erase)(),       /* erase graphics screen  */
+   void (*dev_idle)(),        /* switch from graph to alpha mode */
+   int (*dev_cursor)(),       /* cursor display */
+   void (*dev_close)(),       /* close device */
+   int (*dev_dot)(),          /* draw a single pixel dot */
+   int (*dev_fill_pt)(),      /* draw a filled point */
+   int (*dev_fill_polygon)(), /* draw a filled polygon */
+   void (*dev_ctype)(),       /* set colour of line */
+   int (*dev_set_ctype)(),    /* set possible colours of lines */
+   void (*dev_gflush)();      /* flush graphics */
+   void (*dev_page)();        /* start a new page */
+   void (*dev_redraw)();      /* redraw the screen, if need be */
+@} DEVICES;   
+@end example
+
+@emph{Note that this is the DEVICES structure at the time of writing;
+be sure to see that it is still correct when you write your driver!}
+To add a new device to SM, all you have to do is to write functions
+to fill as many of the slots in @code{DEVICES} as possible, add their
+definitions to @file{sm_declare.h}, then add an
+element to the array devices[] in devices.c. After recompiling, SM will
+recognise your device by the name @code{d_name} that you gave it in devices[].
+Traditionally the functions have the
+same name as those given above with the @code{dev} replaced by some
+mnemonic for your new device. You should surround both your driver and
+the entry in devices[] with #ifdef's so that all I have to do to
+totally lose your device is to not #define it to the compiler. In writing
+your device you may want to use graphcap to give it various pieces
+of information. This can be done; see the imagen driver for an example.
+
+You should include the file @file{sm_declare.h} (which automatically
+includes @file{options.h}) which provides declarations for all SM functions
+(including prototypes if the compiler supports them), and you should add
+your own declarations to this file.
+
+If you don't provide some of the functions, SM will try to
+emulate them in its software. For example, of your ltype function returns
+-1, then we will chop your lines for you. There are a set of functions
+for @code{nodevice} that have the correct types, you can use them for
+functions that you don't want to provide (e.g. if you don't support
+@code{dev_ltype} you can use @code{no_ltype}).
+Some of the routines, e.g.  dev_char
+are sometimes passed NULL arguments to inquire if they can provide
+particular capabilities. In the following paragraphs we discuss all
+the functions, their arguments, what they do, and what they return.
+
+All coordinates are given in screen units, where
+the device is 32768 pixels along a side.
+
+@table @code
+@item dev_setup(str) (char *str;)
+Open the plotting device. Str
+contains the rest of the command line, so if the @code{DEVICE}
+command was @code{DEVICE newdev abcde zyxwvut}, setup will be passed
+@code{abcde zyxwvut}. If the device can't be opened for some reason
+setup should return -1, otherwise 0. Setup has a number of
+book-keeping responsibilities: setting the value of termout to 1 if
+the device is a terminal, otherwise 0; setting the value of ldef to
+the maximum spacing between lines if they are to appear as one
+thick line rather than a set of parallel ones, (used if we have to
+emulate @code{LWEIGHT}); setting the variables xscreen_to_pix and
+yscreen_to_pix to give the conversion from SCREEN to device coordinates;
+calling default_ctype with the name of the default
+colour for lines (e.g. @code{default_ctype("white")}). There is no need
+to look in the @file{.sm} file for a @code{foreground} entry, this is
+done for you (by set_dev()) after dev_setup returns, but you should
+deal with any @code{background} entry if you feel so inclined.
+There is a function parse_color
+that converts a colour name into r, g, and b values (see the sunwindows
+setup function for an example of its use) that may help.
+Note that you should not call @code{stg_setup} -- this was done for you
+automatically before your setup function was called. No return value.
+
+@item dev_enable()
+Enable plotting on the device. For a graphics
+terminal this means switching from alpha to graphics mode, but may
+well not be required for other devices. No arguments, no return value.
+
+@item dev_line(x1,y1,x2,y2) (int x1, y1, x2, y2;)
+Draw a line from (x1,y1) to (x2,y2). No return value.
+
+@item dev_reloc(x,y) (int x,y;)
+Move the plot marker to (x,y). No return value.
+
+@item dev_draw(x,y) (int x,y;)
+Draw a line from the current plot marker
+to (x,y) which becomes the new plot marker. No return value.
+
+@item dev_char(str,x,y) (char *str; int x,y;)
+Write the string at
+the position (x,y). The position given is just to the left of the
+first character, at about the height of the centre of a capital letter.
+Return 0 if you support hardware characters, otherwise -1 in which
+case we'll use the software character set instead.
+If str is NULL, this is just an enquiry as to whether the device
+supports a hardware character set. Char is also called (with NULL) whenever the
+value of expand or angle is changed, to allow you to adjust the sizes
+of cheight and cwidth (the height and width of a character in SCREEN
+units) for a hardware character set, as
+the sizes of hardware sets can be very different from the SM fonts.
+You should only
+change cheight and cwidth if we are really going to use your hardware
+characters (expand == 1, angle == 0).
+
+@item dev_ltype(i) (int i;)
+Set the @code{LTYPE} to be i, as in the
+interactive command.
+Return 0 if you support the ltype asked for, otherwise -1. If you can't support
+a linetype, make sure that you are drawing solid lines, so that
+SM can emulate it for you. @code{LTYPE} 10 is special, it is
+generated by the @code{LTYPE ERASE} command, and asks you to delete lines
+as they are drawn, @code{LTYPE 11} is used to indicate the end of @code{LTYPE ERASE} mode.
+
+@item dev_lweight(lw) (real lw;)
+Set the @code{LWEIGHT} to be lw, as in the interactive command. Lines
+with @code{lweight} 0 should be the natural thickness of a line on your
+device, higher @code{lweight} lines are usually drawn with a thickness
+of @code{LDEF*lweight} in SCREEN coordinates.  Return 0 if you support
+the lweight asked for, otherwise -1.
+
+@item dev_erase()
+Erase the screen. No return value.
+
+@item dev_idle()
+Return to alpha mode, the opposite of dev_enable(). No return value.
+
+@item dev_cursor(x,y) (int *x,*y)
+Find the current position of
+the cursor, if there is one. If there is, the return value is the
+character struck by the user, otherwise return -1. If your device
+has a mouse, you should try to make the buttons correspond to `e',
+`p', and `q' from left to right. If you only have one button, `p' is
+probably the best choice.
+
+@item dev_close()
+Close the device, the opposite of dev_open().
+Note that you should not call @code{stg_close} -- this is done for you
+automatically. No return value.
+
+@item dev_dot(x,y) (int x,y)
+Draw a dot at (x,y), (i.e.  a real dot, not like the @code{DOT} command).
+You'll have to do the move to (x,y)
+yourself. Return 0 if you can draw dots, otherwise -1.
+
+@item dev_fill_pt(n) (int n;)
+Draw a filled point at the current
+position. This is the routine that draws @code{PTYPE n 3} points.
+Remember to allow for @code{EXPAND} and  @code{ANGLE}.
+Return 0 if you can draw the point, otherwise -1;
+
+@item dev_fill_polygon(n) (int style; float *x, *y; int n;)
+Draw a filled polygon defined by @code{x} and @code{y} (a total of @code{n})
+points) in the style @code{style} (0: filled; all other values are currently
+undefined). Return 0 if you can fill polygons in the desired style,
+otherwise -1. You may get queries with on @code{style} with @code{n == 0}.
+
+@item dev_ctype(r,g,b) (int r,g,b;)
+Set the current line colour.
+The interpretation of (r,g,b) depends on whether you have a dev_set_ctype
+function. If you don't, then r, g, and b are the red, green, and blue
+intensities in the range 0-255. If you do, then r is an index into the array
+defined by set_ctype and g and b are irrelevant.
+No return value.
+
+@item dev_set_ctype(col,n) (COLOR *col; int n;)
+Define a set of colours to be accessed by set_ctype. Col is an array
+of n elements, each of which consists of 3 unsigned chars (COLOR is
+defined in sm.h) corresponding to red, green, and blue in the range 0-255.
+Ctype will be used to access this array to change colours.
+Return 0 if you do support set_ctype, otherwise -1.
+If col is NULL this is just an enquiry. If you are asked for more colours
+than you are prepared to support, you should scale the request in a user
+transparent way (e.g. if she wants 256 colours, and you are only giving her 128,
+you should arrange that dev_ctype divides her requests by 2 so it looks as
+if she got all 256).
+
+@item dev_gflush()
+Flush graphics, update graphics on screen. No return value.
+
+@item dev_page()
+Start a new page. If your device produces hardcopy
+you should print the current page and start a new one; if you are writing
+a window system driver you probably should simply raise the window so
+that it is visible. No return value.
+
+@item dev_redraw(fildes) (int fd)
+Redraw the screen, but only if it needs it. This
+function is called by @code{get1char()} before it tries to read a
+character from SM's standard input (file descriptor @code{fd}).
+It is intended for the use of drivers that need to keep an
+eye on `their' window. For example, the Silicon Graphics driver needs
+to redraw a window every time that it is moved. Such device drivers
+will probably want to poll @code{fildes} (e.g. using @code{select()})
+to see that there really @emph{is} input before returning; look at
+the @code{sgi} or @code{x11} driver if you want an example.
+No return value.
+@end table
+
+If you are still confused, look at some of the hardware drivers that
+are already available.
+
+@appendixsubsec Porting to New Machines
+@findex porting to new machines
+
+Porting to new Unix machines should be relatively simple. If the
+machine runs BSD Unix the only changes that should be necessary are
+to the exception handler routines in main.c, to reflect the error
+conditions signalled by your new machine. For a Sys V Unix, you'll have
+to edit @file{options.h} to define @code{SYS_V}.
+Otherwise, your only
+problems should be hidden bugs which flourish in new architectures.
+
+Otherwise there isn't all that much that I can tell you. SM
+runs on Unix (BSD and SysV) and VMS machines, and the places where the
+code is #ifdef'd
+for those operating systems is your best bet for places where there
+are machine dependencies. That said, there are a few obvious problem areas.
+
+First consider get1char, which is the routine that reads terminal
+input. It has to be able to get one character a time from the
+terminal, and not interpret control characters. This is obviously
+operating system dependent (CBREAK under 4.3BSD, PASSALL under VMS, ...).
+Get1char expects to be passed @key{control-A} to start operations, and EOF to
+end them. Anything else means `return a character please'. The
+terminal output functions used by stdgraph are also machine dependent,
+for example they use QIO calls under VMS.
+
+As mentioned above, the exception handlers try to interpret the
+exceptions that they receive and this may require a little
+modification in main.c.
+
+Hardcopy devices need the system() system call to send commands to the
+operating system, and if you don't have one you are in trouble.
+
+In a few places SM needs to make assumptions about how file
+names are put together, and these will need changing. On a similar
+note, some operating systems (e.g.  VMS) are very picky about opening
+files and you may have to be careful. Note the use of the @code{DT}
+graphcap capability to signal particular requirements to the programme.
+
+A machine that didn't use ascii would be rather a nuisance as makeyyl
+assumes that the characters for A-Z are contiguous, and although this
+could be easily fixed I am not sure that other problems wouldn't arise.
+
+A final rather horrifying thought is that Bison might not compile on a
+machine that doesn't have YACC as an alternative. I don't know how to
+fix that, you'd just have to
+hope for the best, or else run Bison/YACC on a different machine and copy
+over control.c.
+
+@node Libraries, Mongo, New Devices, Appendices
+@appendixsec The System Macro Libraries
+
+@c
+@c  Describe the macro libraries, and list their contents
+@c
+@findex macros, useful
+@findex macros, libraries
+This appendix describes the collection of useful macros, written by a variety
+of people, that are to be found in the default macro directory, i.e.
+the directory pointed to by the @code{macro} entry in your @file{.sm} file. If ever you write a useful (or simply clever) macro, why
+not send it to us for inclusion in the next version of SM?
+
+The macros are arranged in a number of files which may be read using the
+@code{load} macro. For example, to load the file @code{fonts} type
+@code{load fonts}. To forget a set of definitions, use @code{unload}.
+Under Unix, there is a macro @code{lsm} that can be used to list the
+contents of macro libraries, e.g. @code{lsm utils}. It is more-or-less
+complete depending on the value of @code{VERBOSE}, just like @code{LIST MACRO}.
+
+The list that follows gives the name and a one-line synopsis of all the macros
+in the default files as of the date of this manual.  The full text of any macro
+may be examined via the @code{help <macroname>} command in SM; the
+default files may be printed for those who desire a hardcopy.
+
+@sp 1
+@center file @file{abbrev} in directory @file{macro}
+(This is a file of all unambiguous abbreviations of keywords. It is created
+using the shell script @file{abbrev} in the main SM directory. Its use may
+interfere with cunning macros, and is not recommended).
+
+@include macrolist.txi
+
+@node Mongo, Fonts, Libraries, Appendices
+@appendixsec Tips for Mongo Users
+@appendixsubsec Differences from Mongo
+SM differs in a number of ways from Mongo, and these fall
+into three groups: those which are enhancements, those which are
+generalisations, and those which are simply incompatibilities. We do not feel
+that there is a fourth group for
+degradations.  For those users of Mongo intimidated by change, we note that
+in most cases it is possible to ignore the enhancements
+by using a macro presented in the next section. This macro redefines
+commands to reproduce the old syntax; for example
+@code{limits} is defined to mean @code{LIMITS x y}. It is also possible to read
+Mongo files using the @code{READ OLD} command, and the macros
+@code{input} and @code{read_old} based upon it. The following list
+of enhancements in not complete; See the distribution notes from the
+current release of SM.
+
+Enhancements:
+@display
+  Any number of vectors may be defined.
+  Vectors may be manipulated arithmetically.
+  Vectors are named.
+  Vectors may be defined from the keyboard using @code{DO} loops or expressions.
+  Vectors may be defined using the cursor.
+  Any vector may be used for plotting.
+  Any vector may be used for the @code{PTYPE} or @code{ERRORBAR} commands.
+  A history feature is implemented.
+  The playback buffer may be edited.
+  Macros may be defined from the keyboard, and edited.
+  A @code{DO} construct is available.
+  A @code{FOREACH} construct is available.
+  Character strings may be read from a file and used freely as labels or names.
+  Data may be read from rows as well as columns in files.
+  Only those parts of a vector satisfying a logical condition need be plotted.
+  Vectors may be sorted or fit with splines.
+  Macros exist for doing least square fit to sets of points,constructing
+  cumulative distributions and histograms, drawing circles, and shading regions.
+  All devices have the same range of device coordinates, 0-32767.
+  The entire SM environment may be saved for later resumption with @code{SAVE}
+  and @code{RESTORE}.
+  The special variable @code{$date} expands to the current date and time.
+  You can define private point types.
+@end display
+
+There are also a few incompatibilities:
+@display
+  @code{DEFINE} is used to define @emph{variables}; @emph{macros} are defined
+  using @code{MACRO}.
+  Macro arguments must be declared, and are referred to as @code{$n},
+  not @code{&n}.
+  The form @code{LIMITS} is not supported (it's meaningless); use
+  @code{LIMITS x y}, or the macro @code{lim}, mentioned above.
+  (But note that @code{READ OLD} allows for these, and makes suitable changes.)
+  @code{WINDOW} now takes 4 arguments.
+@end display
+
+@appendixsubsec The READ OLD command
+@code{READ OLD} reads a Mongo file, converts its contents to a form
+acceptable to SM, and defines them as a macro.
+Any macro definition (i.e. from a line beginning @code{def} to
+a line beginning @code{end}) is converted to the SM form (i.e.
+@file{$s} not @file{&s}) and defined.  The commands CONNECT,
+HISTOGRAM, LIMITS, and POINTS are converted to LIMITS x y, and so
+forth. ERRORBAR, ECOLUMN, and WINDOWS are also converted. READ OLD
+will fail if the Mongo file contains abbreviations such as xc for XCOLUMN,
+then your only hope is to define the same abbreviations. In many cases this
+will have already been done, for instance @code{xc} expands to @code{read x }.
+Comments (beginning !) are optionally converted to standard
+SM
+# comments (depending on how the file @file{read_old.c} was compiled.)
+
+Note that it is advisable to convert these old Mongo macro files to
+SM macros, to enable you to take advantage of SM's
+features. You can do this by simply using READ OLD to read them into
+SM, and then MACRO WRITE or SAVE to write the converted macro out to
+disk.
+
+There is also a macro equivalent of the old @code{INPUT} command.
+
+@example
+input     1     ## read and execute a Mongo (not SM) file
+                READ OLD _temp $1
+                _temp
+                MACRO _temp DELETE
+@end example
+
+@appendixsubsec The compatibility macro
+
+This version of compatibility is more complete than in pre-version 2
+SM, it also conflicts more strongly with normal SM operations.
+@findex compatibility with Mongo
+
+The macro @code{compatibility} defines mimics for the Mongo commands
+which assume that the only vectors are @code{x} and @code{y}. We
+strongly recommend that you do @emph{not} use this macro! If you want
+to use it anyway, commands like @code{limits alpha beta} will give
+syntax errors. You can turn compatibility mode off again with @code{compatibility 0}. The macro itself is a little complicated, it turns
+off the special meaning of (e.g.) @code{limits}, and replaces it with a
+macro that reproduces the old behaviour, in this case @code{LIMITS x
+y}. The new definitions are in the file @file{compatible} in the
+default macro directory, as specified in your @file{.sm} file. At
+the time of writing, the commands @code{connect}, @code{errorbar}, @code{histogram}, @code{limits}, @code{list}, @code{points}, @code{read}, and
+@code{window} are redefined to reproduce the old syntax. In addition,
+@code{help} is defined to not appear on your history buffer, and @code{define} is defined to create macros interactively. You might also be
+interested in other redefinitions of commands (e.g. @code{list} to mean
+list the playback buffer), if so look at `overloading' in the index.
+It should be clear
+that this set of definitions could thoroughly confuse SM if
+you try to take advantage of its features; in the realm of
+compatibility mode, it is strictly @emph{caveat emptor}.
+
+@example
+compatible 11   ## define macros to be compatible with Mongo
+                # If the argument is non-zero or omitted, 
+                # compatibility mode is turned on.
+                # note that some of these make it hard to use regular SM!
+                if($?1 == 0) @{
+                   compatible 1
+                   RETURN
+                @}
+                if($1 == 0) @{ 
+                   MACRO DELETE "$!macro"compatible
+                @}
+                FOREACH w @{ connect define errorbar help histogram limits \
+                       list points read window write @} @{
+                   OVERLOAD $w $1
+                @}
+                if($1) @{
+                   MACRO READ "$!macro"compatible
+                @}
+                #               So newline will end IF statement
+@end example
+
+@include fonts.txi

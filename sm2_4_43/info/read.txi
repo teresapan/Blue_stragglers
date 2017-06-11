@@ -1,0 +1,243 @@
+@node Read, Relocate, Range, Commands
+
+@iftex
+@syntax Read.
+@end iftex
+@example
+Syntax: READ WORD INTEGER
+        READ [ ! ] @{ WORD INTEGER WORD INTEGER @dots{} @}
+        READ [ ! ] @{ @dots{} WORD range @dots{} @}
+        READ @r{ROW} WORD INTEGER
+        READ [ ! ] 'format' @{ WORD WORD @dots{} @}
+        READ @r{EDIT} WORD
+        READ @r{OLD} WORD WORD
+        META @r{READ} WORD WORD
+@end example
+@pindex Read
+
+READ @code{WORD INTEGER} reads a column of data from the file specified
+by the DATA command, using the lines specified by LINES. Columns may
+be separated by white space (blanks or tabs) or by a comma, or by some
+combination of the two. It's OK if some of the columns contain text,
+providing that you don't try to read them. You can read text columns
+into string vectors, as described in the next paragraph.
+The data is
+read into the vector @code{WORD}, which will be created, from column
+@code{INTEGER}. Any field beginning with a @code{*} is taken to be `empty',
+and is assigned the value 1.001e36 (or 1.001e300 if you chose double precision
+vectors in @code{set_opts}). Any line beginning with a
+# is skipped over (and printed if VERBOSE is greater than 1), any line
+beginning with a ! is skipped and always written to the terminal.
+Long (logical) lines may be spread over
+several (physical) lines by ending the line with a `\'; no line may
+exceed a total of 1500 characters. If you use continuation lines, note
+that SM's line numbers (for example, as set with the @code{LINES} command)
+apply to @emph{logical} not @code{physical} lines; a continued line counts
+as only one line.
+@findex special characters, #
+@findex comments in data files
+@findex special characters, !
+
+You can optionally specify a type of vector by adding a suffix onto the
+integer; `.f' (the default) or `.g' means floating point,
+ `.d', `.o', `.i', or `.x'
+ means integer, `.s' means string-valued.
+String valued vectors can be used as input to PTYPE commands, or
+simply for reading columns from data files that you want to PRINT.
+@findex vectors, specifying types
+@findex integer vectors, reading
+@findex string vectors, reading
+
+READ @{ @code{WORD INTEGER WORD INTEGER} ... @} is the same as repeating
+READ @code{WORD INTEGER} for each vector, but more efficient as it only has to
+read the file once.
+@example
+READ @{ x 1 s 5.s y 2.f z 3.i @}
+@end example
+@noindent
+will read columns 1 and 2 into floating point vectors @code{x} and @code{y},
+column 3 into an integer-valued vector z,
+and column 5 into string-valued vector @code{s}. As noted below, you can
+omit the INTEGERs by specifying an empty format: READ '' @{ x y.d @} (those
+are two single quotes).
+
+Usually
+SM stops reading at the first invalid line, but if you say @code{READ !} all
+the lines specified with @code{LINES} (or the entire file) are read.
+Missing numerical fields are set to be invalid (i.e. they are treated as *);
+missing string values are left blank. This is probably most useful with the
+@code{%n} format specifier.
+
+If @code{INTEGER} is invalid (<= 0), the contents of the file are written
+to the standard output. READ ROW is very similar, but the values
+are read from row @code{INTEGER} of the file (any LINES command is ignored).
+The same type qualifiers are allowed as for reading columns. There is no
+limit to the number of elements in the vector, except that implied by
+the maximum length of a line. You cannot specify a range of columns to
+read with READ ROW, but try
+@example
+SET i=2,5
+READ ROW x 1
+SET x=x[i]
+@end example
+@noindent
+If the first field is a string, you can say READ ROW s 1.s  SET x=ATOF(s[i]).
+
+@findex reading vectors from many columns
+If your data is in a number of columns (e.g. you have written it out to a file
+ten values to a line) you can specify a range of columns, for example
+@example
+READ @{ x 1-4 y 5 z 6-10 @}.
+@end example
+@noindent
+You can only use ranges for numerical vectors, and only with the list form
+of @code{READ}. Ranges won't work if
+there is a short line at the end, but you can still say something like
+@example
+LINES 0 100
+READ @{ x 1-4 @}
+READ ROW _x 101
+SET x=x CONCAT _x
+@end example
+@noindent
+which will be almost as efficient if you have defined @code{$save_read_ptr}.
+
+@findex save_read_ptr
+@findex caching the read pointer
+In order to speed up multiple reads of the same file, SM usually remembers
+where it got to in a file; this is disabled if you undefine the variable
+@code{$save_read_ptr} (which can be done in your @file{.sm} file by setting
+it to 0). The remembered position is forgotten every time that you issue a
+@code{DATA} command,
+or try to re-read part of the file. You can get into trouble if you read
+part of a file, modify the file without reissuing a @code{DATA} command,
+and then read some more, but in normal
+usage it should be safe to leave saving the read pointer enabled.
+
+Instead of using simple column-oriented input
+it is possible to specify a format similar to those used by C's @code{scanf}
+functions (Fortran formats are not supported); if you don't know C
+then most of what you need to know is that characters in the input
+must match those in the input file, except that items to be read are specified
+with format strings that start @code{%}. For example, a format
+@code{abc%f:%f} expects the input to consist of `abc' then two floating point
+numbers separated by a colon.
+If the @code{%} is followed by a @code{*}
+the field is read but isn't assigned to a vector.
+You can specify a newline as @code{\n} or a tab as @code{\t}.
+
+As a further example, if your data file has lines like
+@example
+        1:12:30  -45:30:11
+@end example
+@noindent
+you could read it with
+@example
+        read '%d:%d:%d %f:%f:%f' @{ hr min sec deg dmin dsec @}.
+@end example
+@noindent
+The type of the vector is deduced from the format string; you can't
+use @code{.f} or @code{.s} in the vector list (why would you want
+to specify a type twice?).
+
+As a special case, of you specify an empty format ('') the named vectors
+are read as floats from the first n columns of the file, so
+@example
+READ '' @{ x y z @}
+@end example
+@noindent
+is equivalent to
+@example
+READ @{ x 1.f y 1.f z 3.f @}
+@end example
+@noindent
+or simply
+@example
+READ @{ x 1 y 1 z 3 @}
+@end example
+You can use the usual qualifiers, e.g.
+@example
+READ '' @{ x y z flags.x @}
+@end example
+and omit columns entirely by replacing the vector's name with @code{.}:
+@example
+READ '' @{ x . z @}
+@end example
+
+I said that the %-formats were `similar' to @code{scanf}'s; they differ
+in the way that they treat field widths and white space. If you don't
+specify a width at all SM follows the usual C behaviour of skipping
+white space between items; if you do specify a field width no space is
+skipped over before the field begins. You can always explicitly skip
+spaces with a @code{%*[ ]} format. The @code{%n} format returns the number
+of fields matched rather than the number of characters.
+
+The supported format letters are @code{d}, @code{e}, @code{f}, @code{g},
+@code{o}, @code{n}, @code{s}, @code{x}, and @code{[}, their meanings are:
+
+@table @code
+@item %d
+Read an integer into a floating vector (`d' stands for `decimal'). If a
+field width is specified trailing spaces are treated as spaces not zeros
+-- this isn't fortran you know. The field @code{" 1234 "} (i.e. a
+field width of 6, @code{%6d}) has the value @code{1234} not @code{12340}.
+
+@item %e
+@itemx %g
+Read a floating point number with or without an exponent into a floating
+vector. As for @code{%d}, trailing spaces in a fixed-width field are treated
+as spaces not zeros.
+
+@item %f
+Read a floating point number without an exponent into a floating vector.
+As for @code{%d}, trailing spaces in a fixed-width field are treated
+as spaces not zeros.
+
+@item %n
+Return the number of fields that are already correctly
+matched in the current line; this is only useful in conjunction with
+READ !.
+
+@item %o
+Like %d, but the number's taken to be octal.
+
+@item %s
+Read a string into a string-valued vector. If a field width is specified
+the entire field is read spaces and all; if there is no width initial spaces
+are skipped as usual and the string is terminated by the first white
+space character.
+
+@item %x
+Like %d, but the number's taken to be in hex.
+
+@item %[...]
+Read a string consisting of the characters @code{...} into a string valued
+vector. You can specify a range as @code{a-z} so @code{%[a-zABC0-9]} would
+read a string consisting of any lower case character or digit, or one
+of A, B, or C.
+If the first character is ^, read any characters @emph{except} those
+specified (e.g. %[^abc] reads anything but
+the letters a, b, or c). If a field width is specified characters that
+don't match those specified at the end of the field are ignored.
+
+@item %%
+Not a conversion format, but a literal %.
+
+@end table
+
+READ EDIT @code{WORD} reads a new set of keybindings from the file @code{WORD}.
+The format and syntax are given under History (@pxref{History}) in the
+introduction.
+
+READ OLD @code{WORD1 WORD2} defines macro @code{WORD1} to be the the
+contents of file @code{WORD2}. This is provided for compatibility with
+Mongo (@pxref{Mongo}) and the @code{read_old} macro. You no longer
+need use @code{read_old} to read SM history files, use RESTORE
+instead.
+
+   If VERBOSE (@pxref{Verbose}) is greater than 0, the lines actually
+read will be reported.
+
+META READ @code{WORD} reads a metafile, as produced with the pseudo-device
+META, and executes the enclosed commands on the current device.
+@findex metafiles, playing back.

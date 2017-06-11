@@ -1,0 +1,81 @@
+This is the top level SM directory, and contains various useful files
+in addition to those needed to run SM.
+
+To install SM, see sm.install
+
+The other files in this directory are a miscellany:
+AA_Version.h		Used in upkeep of SM
+.config			The options used to make SM; updated automatically
+Makefile		Used with the Unix make programme to compiling SM
+abbrev			Make a macro file of all unambiguous abbreviations
+callable		Directory of examples of linking the SM libraries
+compile.com		Used instead of make under VMS
+compile_g		A programme to pre-compile graphcap entries
+config			Make the .config file
+descrip.mms		A Makefile for VMS's version of make, MMS
+dump			Unix adb script to decode core dumps
+filecap			File describing binary file formats to SM
+fix_options		Resets src/options.h; used by make distrib
+font_index		Specify characters to use in SM's fonts
+fonts.bin		Binary form of font information
+get_grammar		Programme to extract Yacc grammar from .y files
+graphcap		File describing graphics devices to SM
+help			Directory containing SM's help files
+hershey_oc.dat		File specifying all the Hershey characters for fonts
+info			Directory for the documentation
+kept_SM.com		Command file to run SM in a subprocess (VMS)
+macro			Directory with default macros
+make_patch		Shell script to make patch files
+make_cvs_patch		Shell script to make patch files from cvs'd sources
+make_tags		Shell script to make emacs-style tag files for SM macro
+maps.dat		File specifying keyboard mappings for SM
+maps_vms.dat		File specifying keyboard mappings for SM, for DCL users
+old_font_index		Like font_index, but for the old fonts
+rasterise		Programme to process SM raster files
+read_fonts		Programme to make fonts.bin files
+rename_sm		Script to add a prefix to all functions in callable SM
+set_opts		Script to set SM up on a new machine
+sm_to_vms		Ftp script to move SM to a VMS system
+sm2fd			Copy SM source to floppy disks
+sm.install		Installation instructions made from info/install.txi
+sm.el			Gnuemacs lisp functions for editing SM macros
+sm.man			Unix manual page for SM (use nroff -man sm.man)
+sm.pps			Definitions for printing SM files using pps
+			(A public domain postscript pretty-printer. Rename
+			sm.pps sm.l and compile it like pps's c.l).
+src			Directory containing source code
+termcap			File describing terminals, for systems without termcaps
+tex.defs		File defining the pre-loaded `TeX' definitions.
+unix.sm			Example .sm file for unix
+vgdefs			Definitions for printing SM macros with unix's vgrind
+vms.sm			Example .sm file for VMS
+
+You don't need all of these on disk! In fact the minimum that you need
+to run SM is the sm executable, the font.bin file, graphcap,
+filecap, (and maybe termcap), and the macro and help directories.  The
+remaining files are source for everything, including the manual,
+various utilities (e.g. to make binary font files, or to pre-compile
+graphcap entries, or the patch utility to install updates), and
+various useful files (e.g. example keymap files and .sm)
+
+MACHINES
+
+We expect SM to build on anything (well, almost anything). Here's a list
+of recent builds. It probably isn't complete.
+
+O/S			compiler		Date
+---			--------		----
+HP-UX B.10.10*		cc			17th Aug  96
+IRIS 5.1.1		cc			13th Sept 95
+IRIS 5.1.1		gcc 2.5.8		13th Sept 95
+IRIS 5.3		cc			13th Oct  96
+Linux 2.0		gcc			11th Oct  96
+OSF/1 3.0		cc			10th Oct  96
+SunOS 4.1.3		gcc 2.5.8		12th Sept 95
+SunOS 4.1.3		cc			11th Oct  96
+SunOS 4.1.3		acc			13th Sept 95
+Solaris 2.5		cc			11th Oct  96
+Solaris 2.4		gcc			25th Oct  95
+
+---------
+* thanks to Philippe Brieu

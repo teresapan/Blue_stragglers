@@ -1,0 +1,80 @@
+plot	erase
+
+	define TeX_strings 1
+
+	data mb_NGC1261_ecnum1.txt.coll.out
+	lines 2 16822
+	read {mcoll1 1 vcoll1 2}
+	data mb_NGC1261_ecnum2.txt.coll.out
+	lines 2 18560
+	read {mcoll2 1 vcoll2 2}
+
+
+	set log_mcoll1=lg(mcoll1)
+	set log_vcoll1=lg(vcoll1)
+	set log_mcoll2=lg(mcoll2)
+	set log_vcoll2=lg(vcoll2)
+
+	expand 1.05
+	location 10000 32000 10000 32000
+	limits -0.8 0.6 -1.5 4.0
+	box 0 0 0 0
+	lweight 3
+#	get_hist mcoll13a x3 y3 0 10 0.2
+#	set y3=y3/dimen(mcoll13a)
+#	connect x3 y3
+	ptype 10 3
+	points log_mcoll1 log_vcoll1
+	ctype red
+	ptype 10 0
+	lweight 1
+	points log_mcoll2 log_vcoll2
+	ctype default
+	lweight 1
+	relocate -0.7 -0.6
+	label 1+2
+	relocate -0.7 -0.9
+	ctype red
+	label 2+2
+	ctype default
+
+	
+	location 3000 8500 10000 32000
+#	limits -1.5 4.0 0 1
+	limits 0 0.25 -1.5 4.0
+	box
+	lweight 3
+	get_hist log_vcoll1 x1 y1 -2.0 5.0 0.2
+	set y1=y1/dimen(log_vcoll1)
+	connect y1 x1
+	ctype red
+	get_hist log_vcoll2 x2 y2 -2.0 5.0 0.2
+	set y2=y2/dimen(log_vcoll2)
+	connect	y2 x2
+	ctype default
+	lweight 1
+	expand 1.50
+	ylabel log Velocity (in km s^{-1})
+
+	expand 1.05
+	location 10000 32000 3000 8500
+	limits -0.8 0.6 0 0.2
+#	limits 0 0.25 -0.8 0.6
+	box
+	lweight	3
+	get_hist log_mcoll1 x3 y3 -1.0 1.0 0.05
+	set y3=y3/dimen(log_mcoll1)
+	connect	x3 y3
+	ctype red
+        get_hist log_mcoll2 x4 y4 -1.0 1.0 0.05
+        set y4=y4/dimen(log_mcoll2)
+        connect x4 y4
+        ctype default
+	lweight	1
+
+	expand 1.5
+	window 1 1 1 1
+	xlabel log Stellar Mass (in M_{\odot})
+#	ylabel log Velocity (in km s^{-1})
+	ltype 0
+

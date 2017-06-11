@@ -1,0 +1,28 @@
+@node Edit, Environment Variables, Draw, Commands
+
+@iftex
+@syntax Edit.
+@end iftex
+@example
+Syntax: EDIT function key_strokes 
+@end example
+@pindex Edit
+
+Bind a function to a set of @code{key_strokes} for the editor.
+For example, @code{EDIT refresh @key{control-R}} makes the @key{control-R} key
+refresh the screen. A complete list of functions is given in the
+`Changing Key-Bindings' section in the main part of this manual (see
+under `bindings' in the index). Each character in the key sequence can
+be specified as a character, e.g. `@code{a}' or the single character
+`@code{@key{control-A}}',
+as `@code{@key{control-c}}' representing the single character @code{@key{control-c}} as the two
+character sequence `@code{^}' followed by `@code{c}', or by `@code{\nnn}'
+where @code{nnn} is an octal number (e.g. @code{EDIT refresh \022}).
+
+In order to use multiple key sequences
+(e.g. @code{@key{control-A}@key{control-B}@key{control-C}}) you must first undefine
+any sub-sequences, in this case @code{@key{control-A}} and @code{@key{control-A}@key{control-B}},
+by making them illegal -- @code{EDIT illegal @key{control-A}}.
+
+See @code{READ} for how to define a set of keys from a file, and
+@code{KEY} for how to define keys to execute commands.

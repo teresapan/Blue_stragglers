@@ -1,0 +1,317 @@
+###################################################################
+#								  #
+#		    SSSS       M       M			  #
+#		   S    S      MM     MM			  #
+#		   S	       M M   M M			  #
+#		    SSSS       M  M M  M			  #
+#		        S      M   M   M			  #
+#		   S    S      M       M			  #
+#		    SSSS       M       M			  #
+#								  #
+#								  #
+###################################################################
+#
+#   We have now separated the compilation options from the Make options,
+# see the file options.h for how to compile in devices and (maybe) placate
+# your compiler. Of course, you are still free to define them on the command
+# line instead
+#
+#   You may not need to define MAKE at all
+#
+# If you have trouble with bison or sm needing "alloca", edit the
+# options.h file to define NO_ALLOCA, which says that it doesn't exist
+#
+# If your system doesn't support (or need) ranlib, remove the definition
+# of $(RANLIB). For System V, you probably don't want it.
+#
+# Default rules for compiling code
+#
+.c.o :
+	$(CC) -c $(CFLAGS) $*.c
+#
+# Define MALLOC to use a non-standard malloc (commenting it out is fine)
+# On a sun, if DEBUG is defined and greater than 0, use /usr/lib/debug/malloc.o
+#
+#MALLOC = /usr/lib/debug/malloc.o
+#
+# linker flags:
+#
+SGILIB = -lgl
+SUNLIB = -lcore -lsunwindow -lpixrect
+SUNVLIB = -lsuntool -lsunwindow -lpixrect
+SVGALIB = -L/usr/include/lib -lvga
+TKLIB = -ltk -ltcl
+XLIB = -lX
+XLIB11 = -lX11
+#
+# Add the libraries that you need for the #define's you chose in options.h:
+# SGI			$(SGILIB)
+# SUN_VIEW		$(SUNVLIB)
+# SUNWINDOWS		$(SUNLIB)
+# SVGALIB		$(SVGALIB)
+# TK			$(TKLIB)
+# XWINDOWS, (i.e. X10)	$(XLIB)
+# X11, (i.e. X11)	$(XLIB11)
+#
+#  if you are compiling on a mips running riscwindows, and not using the bsd
+#  compiler, you need to add -lbsd to the ldflags for x to link, and may have
+#  to explicitly spell out where the x11 library is.
+#
+LDFLAGS =
+#
+# This seems to be needed by a convex
+#
+MAKE = make
+#
+# If you don't need ranlib comment out the definition
+#
+RANLIB = /usr/bin/ranlib
+#
+# Don't change this, please
+#
+SHELL = /bin/sh
+#
+LIB = libplotsub.a libdevices.a libutils.a 
+#
+OBJECT = \
+	sm_main.o control.o do_for.o editor.o fft.o getlist.o \
+	help.o history.o input.o lexan.o keymac.o macros.o macroed.o \
+	math.o more.o mscanf.o name.o \
+	pow.o printv.o random.o readcol.o read_old.o restore.o spline.o \
+	tokens.o userfn.o \
+	variable.o vec_arith.o vec_logical.o vec_misc.o vec_strings.o \
+	yylex.o $(MALLOC)
+#
+# Which compiler-compiler to use (you can't use yacc any more, sorry)
+#
+YACC = bison -y
+#
+# Make all targets (should be first in Makefile)
+#
+all :
+	( cd .. ; $(MAKE) sm )
+	@- if [ -f sm ]; then \
+	  if [ "`find $(LIB) -newer sm -print`" != "" ]; then \
+	     echo "sm is out of date wrt libraries; removing"; \
+	     rm -f sm; \
+	     ( cd .. ; $(MAKE) link ); \
+          fi; \
+	fi
+
+all_src : sm
+#
+# Preserve these files
+#
+.PRECIOUS : $(LIB)
+#
+# Make bison first
+#
+Bison : 
+	( cd bison ;\
+	$(MAKE) CC="$(CC)" CFLAGS="-c" LDFLAGS="-s" bison )
+#
+# Make SM
+#
+sm : main.o $(OBJECT) $(LIB)
+	$(CC) -o sm main.o $(OBJECT) $(LIB) $(LDFLAGS)
+#
+link :
+	$(CC) -o sm main.o $(OBJECT) $(LIB) $(LDFLAGS)
+#
+# make control.c from control.y
+# Be careful to see that control.h is updated if and only if necessary
+#
+control.c .UPDATEALL .PRECIOUS : control.y
+	@ echo $(YACC) -d control.y
+	@ sr=16; rr=6; \
+	 $(YACC) -d control.y 2>&1 | \
+	  grep -v "$$sr shift/reduce conflicts and $$rr reduce/reduce"|\
+	  grep -v "conflicts: *$$sr shift/reduce, $$rr reduce/reduce"||\
+	   true
+	@- if test ! -f control.h; then \
+		mv y.tab.h control.h; touch control.h; \
+	  elif cmp -s y.tab.h control.h; then \
+		rm -f y.tab.h; \
+	  else \
+		mv y.tab.h control.h; touch control.h; \
+	  fi
+	@ case "$(CC)" in \
+	    cc*) \
+		sed 's/^\(\#line.*\)/\/\* \1 \*\//' y.tab.c > control.c; \
+		rm -f y.tab.c;; \
+	    *) \
+		mv y.tab.c control.c; touch control.c;; \
+	esac
+	@ sh mv_vars
+#	$(CC) $(CFLAGS) -c control.c ; rm -f control.c
+control.h :
+	@- if test ! -f control.h -a -f control.c ; then rm -f control.c; fi
+#
+# make yylex.c from the list of tokens in control.h,
+# and using lexan() as a source for tokens.
+#
+makeyyl .PRECIOUS : makeyyl.c
+	$(CC) $(CFLAGS) -o makeyyl makeyyl.c -lm
+#
+yylex.c .PRECIOUS : control.h makeyyl
+	./makeyyl control.h lexan yylex
+#
+# sm_main can include a block of local code from local.c
+#
+sm_main.o : local.c
+#
+# Get the libraries from the subdirectories.
+#
+libdevices.a : _Devices ;
+_Devices :
+	( cd devices; \
+		$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
+			RANLIB="$(RANLIB)" ../libdevices.a )
+libplotsub.a : _Plotsub ;
+_Plotsub :
+	( cd plotsub; \
+		$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
+			RANLIB="$(RANLIB)" ../libplotsub.a )
+libutils.a : _Utils ;
+_Utils :
+	( cd utils; \
+		$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
+			DEFAULT_PATH="$(DEFAULT_PATH)" RANLIB="$(RANLIB)" \
+				../libutils.a )
+#
+# Here is the library to allow a programme to call the SM parser. It
+# isn't built by default
+#
+Parser : libparser.a
+libparser.a : $(OBJECT) Interface
+	- ( files="`echo $? | sed -e 's/ *Interface *//'`" ; \
+	    if test "$$files" != ""; then ar r libparser.a $$files; fi )
+	@- if test "$(RANLIB)" != "" -a -f "$(RANLIB)"; then \
+		$(RANLIB) libparser.a; fi
+Interface :
+	( cd plotsub; \
+		$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
+			RANLIB="$(RANLIB)" ../libparser.a )
+#
+# clean out all object code and junk files
+#
+empty : clean
+	- rm -f sm bison/bison TAGS Makefile
+clean : tidy
+	- rm -f *.o *.a *.ln makeyyl yylex.c
+	- (cd bison ; $(MAKE) clean )
+	- (cd devices ; $(MAKE) clean )
+	- (cd plotsub ; $(MAKE) clean )
+	- (cd utils ; $(MAKE) clean )
+tidy : 
+	- rm -f y?tab.* y.output *.ckp core *~ .*~ *.orig *.rej \
+		bison/*.orig bison/*.rej bison/*~
+	- (cd devices ; $(MAKE) tidy )
+	- (cd plotsub ; $(MAKE) tidy )
+	- (cd utils ; $(MAKE) tidy )
+#
+# make tags files (here for Gnuemacs)
+#
+tags :
+	etags `echo *.[chy] devices/*.[ch] plotsub/*.[ch] utils/*.[ch] | \
+		   sed -e 's/control.[ch]//'`
+#
+#
+# Make the makefiles, and also descrip.mms for VMS
+#
+MAKE_FILE = Makefile
+make :
+	make_make -u -v -f $(MAKE_FILE) main.o $(OBJECT) \
+					-O copyright.h -O sm_declare.h
+	- (cd devices ; $(MAKE) make MAKE_FILE=$(MAKE_FILE))
+	- (cd plotsub ; $(MAKE) make MAKE_FILE=$(MAKE_FILE))
+	- (cd utils ; $(MAKE) make MAKE_FILE=$(MAKE_FILE))
+#
+# Here are all the dependencies:
+#
+#START_DEPEND
+main.o :	options.h
+sm_main.o :	local.c
+sm_main.o :	../AA_Version.h
+sm_main.o :	devices.h
+sm_main.o :	edit.h
+sm_main.o :	options.h
+sm_main.o :	stack.h
+control.o :	control.h
+control.o :	devices.h
+control.o :	options.h
+control.o :	stack.h
+control.o :	vectors.h
+control.o :	yaccun.h
+do_for.o :	options.h
+do_for.o :	vectors.h
+do_for.o :	yaccun.h
+editor.o :	charset.h
+editor.o :	devices.h
+editor.o :	edit.h
+editor.o :	options.h
+editor.o :	tty.h
+fft.o :	options.h
+fft.o :	sm.h
+getlist.o :	options.h
+getlist.o :	vectors.h
+getlist.o :	yaccun.h
+help.o :	options.h
+history.o :	charset.h
+history.o :	edit.h
+history.o :	options.h
+input.o :	charset.h
+input.o :	edit.h
+input.o :	options.h
+input.o :	stack.h
+lexan.o :	lex.h
+lexan.o :	options.h
+lexan.o :	vectors.h
+lexan.o :	yaccun.h
+keymac.o :	charset.h
+keymac.o :	edit.h
+keymac.o :	options.h
+macros.o :	charset.h
+macros.o :	options.h
+macros.o :	stack.h
+macros.o :	tree.h
+macroed.o :	charset.h
+macroed.o :	edit.h
+macroed.o :	options.h
+more.o :	charset.h
+more.o :	options.h
+mscanf.o :	options.h
+name.o :	options.h
+numword.o :	options.h
+printv.o :	options.h
+printv.o :	vectors.h
+readcol.o :	charset.h
+readcol.o :	options.h
+readcol.o :	vectors.h
+read_old.o :	options.h
+restore.o :	options.h
+restore.o :	vectors.h
+spline.o :	options.h
+spline.o :	vectors.h
+tokens.o :	control.h
+tokens.o :	options.h
+tokens.o :	vectors.h
+tokens.o :	yaccun.h
+userfn.o :	options.h
+userfn.o :	vectors.h
+variable.o :	options.h
+variable.o :	tree.h
+vec_arith.o :	options.h
+vec_arith.o :	vectors.h
+vec_logical.o :	options.h
+vec_logical.o :	vectors.h
+vec_misc.o :	options.h
+vec_misc.o :	vectors.h
+vec_strings.o :	options.h
+vec_strings.o :	vectors.h
+yylex.o :	control.h
+yylex.o :	lex.h
+yylex.o :	options.h
+yylex.o :	stack.h
+yylex.o :	vectors.h
+yylex.o :	yaccun.h

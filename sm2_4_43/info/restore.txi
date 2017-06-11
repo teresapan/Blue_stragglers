@@ -1,0 +1,25 @@
+@node Restore, Return, Relocate, Commands
+
+@iftex
+@syntax Restore.
+@end iftex
+@example
+Syntax: RESTORE [ @r{filename} ]
+@end example
+
+   Restore all the current macros, variables, and vectors from file
+@code{filename}
+(if omitted the default is to use the value of @code{save_file} in
+your @file{.sm} file, or failing that @file{sm.dmp}). In
+addition, the current history buffer 
+is replaced by the macro @code{all} if defined in the RESTOREd file.
+
+   The file should have been written by the SAVE
+command, and RESTORE will treat any other file type as if it were a
+SM history file and add its commands to the end of the
+current history list.
+@pindex Reading from a file
+
+If VERBOSE (@pxref{Verbose}) is greater than 0, some extra information
+is printed.
+

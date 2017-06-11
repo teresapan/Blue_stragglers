@@ -1,0 +1,88 @@
+#!/bin/sh
+#
+# Move the Variables within the Auto Variables comment to
+# be auto variables in yyparse. This only matters for recursively
+# called parsers, and even then we often get away with it.
+#
+# Also make some variables far rather than static; this only happens
+# on DOS machines (see options.h), but this way unix control.[ch] are
+# valid under DOS. Slightly different patterns are required for different
+# versions of bison
+#
+if false; then
+mv control.c y.tab.c
+sed -e '/YYPARSE_PARAM_DECL/d' y.tab.c | \
+sed	-e '/\/\*Auto Variables\*\//,/\/\*End Auto Variables\*\//{
+		s/static *//
+		H
+		d
+	}' \
+	-e 's/(YYPARSE_PARAM_ARG)/()/' \
+	-e '/^yyparse *()/{
+		N
+		p
+		x
+	}' \
+	-e 's/static const short/Static Const short Far/g' \
+	-e 's/static short/Static Const short Far/g' \
+	-e 's/static const char \* const/Static Const char Far * Const Far/g' \
+	-e 's/static char \*/Static Const char Far * Const Far /g' \
+	> control.c
+rm -f y.tab.c
+else
+perl -i -e '
+$auto = "";
+$inserted_auto = 0;
+
+open(FD, "../Makefile");
+while(<FD>) {
+   if(/^CC *= *(.*)/) {
+      $CC = $1;
+      last;
+    }
+}
+
+$declare_yydebug = "";
+if (!`$CC -E control.c | grep "int +yydebug"`) {
+   $declare_yydebug = "int yydebug;\n";
+}
+
+while(<>) {
+   if(/YYPARSE_PARAM_DECL/) {
+      next;
+   }
+   s/\(YYPARSE_PARAM_ARG\)/()/;
+   s/static const short/Static Const short Far/g;
+   s/static short/Static Const short Far/g;
+   s/static const char \* const/Static Const char Far * Const Far/g;
+   s/static char \*/Static Const char Far * Const Far /g;
+   # Handle Auto Variables
+   if(m|/\*Auto Variables\*/|) {
+      while(<>) {
+         if(m|/\*End Auto Variables\*/|) {
+             last;
+	 }
+	 $auto .= $_;
+      }
+      $auto =~ s/static//g;
+      print $declare_yydebug;
+      next;
+   }
+
+   if (!$inserted_auto && /yyparse *\(\)/) {
+      print;
+      while(<>) {
+         print;
+         if (/\{/) {
+	    last;
+	 }
+      }
+      print $auto;
+      $inserted_auto = 1;
+      next;
+   }
+
+   print;
+}
+' control.c
+fi

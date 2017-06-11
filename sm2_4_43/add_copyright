@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# Add the copyright notice to options.h
+#
+echo Adding copyright notice to options.skl
+awk 'NR == 1 && $0 !~ /^#error/ {
+   print "#error You must edit options.h before SM will compile."
+   print "SM will not compile until you have removed these seven lines"
+   print "By removing them you acknowledge that you have read our"
+   print "copyright notices, and you confirm that you have a legal"
+   print "copy of SM. If you are not sure of your status please send"
+   print "email to either Robert Lupton (rhl@astro.princeton.edu) or"
+   print "Patricia Monger (monger@mcmaster.ca)."
+ }
+ {
+   print $0;
+ }
+ ' src/options.skl > src/options.skl~
+mv src/options.skl~ src/options.skl

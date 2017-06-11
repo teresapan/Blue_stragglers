@@ -1,0 +1,47 @@
+#!/bin/sh
+#
+# Rename SM's external symbols with $prefix (default: sm_).
+# You specify one file and the answer is put on the standard output
+#
+prefix="sm_"
+while [ "$1" != "" ]; do
+	case $1 in
+	  -p*)
+		prefix=`echo $1 | colrm 1 2`
+		if [ "$prefix" = "" ]; then
+			shift; prefix=$1
+			if [ "$prefix" = "" ]; then
+				echo "You need a prefix with -p"
+				exit 1
+			fi
+		fi
+		shift;;
+	  -*)
+		syntax="Usage: `basename $0` [ -pprefix ] file"
+		shift;;
+	  *)
+		break
+	esac
+done
+if [ "$syntax" != "" ]; then
+	echo $syntax
+	exit 1
+fi
+if [ "$1" = "" -o "$2" != "" ]; then
+	echo "You must specify exactly one file to convert"
+	exit 1
+fi
+
+for w in \
+	angle axis box conn contour ctype curs defvar defimage delimage dot \
+	draw draw_point erase errorbar expand format filetype gflush hardcopy \
+	histogram label line identification device grelocate grid levels \
+	limits location ltype lweight minmax notation plotsym points ptype \
+	putlabel readimage redraw relocate shade ticksize alpha graphics \
+	window xlabel ylabel interrupt suspend verbose toscreen \
+	; do
+	command="$command -e s/\<$w\>/${prefix}$w/"
+done
+sed $command $1
+
+		

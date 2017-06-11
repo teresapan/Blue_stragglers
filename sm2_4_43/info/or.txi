@@ -1,0 +1,14 @@
+@node Or, Overload, Notation, Commands
+
+@iftex
+@syntax Or.
+@end iftex
+@example
+Syntax: OR
+@end example
+@pindex Or
+@findex logical or
+
+In a scalar context, you can use OR instead of @code{||}.  The difference
+is that OR doesn't evaluate the right-hand-side of the expression if
+the left-hand-side is true; @xref{If}, for examples.

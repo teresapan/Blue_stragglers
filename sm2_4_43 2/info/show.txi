@@ -1,0 +1,16 @@
+@node Show, Sort, Shade, Commands
+
+@iftex
+@syntax Show.
+@end iftex
+@example
+Syntax: SHOW 
+@end example
+@pindex Show
+
+   List the values of some of the internal variables, including
+current location
+and plot region limits in user and device coordinates, the value of
+the expansion and angle variables, the line type and weight, and the
+physical limits. Show is actually a macro, so you could modify
+it to your own ends, for example listing the current data file too.

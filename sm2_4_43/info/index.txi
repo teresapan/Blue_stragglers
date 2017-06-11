@@ -1,0 +1,12 @@
+@node Index, Command Index, , Top
+@unnumbered General Index
+
+There is a separate index for graphcap capabilities, see @ref{Graphcap Index}.
+
+@printindex fn
+
+@node Command Index, , Index, Top
+@unnumbered Command Index
+
+@printindex pg
+

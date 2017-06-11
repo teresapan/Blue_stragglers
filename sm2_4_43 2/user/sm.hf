@@ -1,0 +1,35 @@
+quit
+1
+echo 1
+echo $1
+quit
+load demos
+sundial
+set x=0,100
+set y=x
+limits x y
+connect x y
+erase
+quit
+device bgi vga
+set x=0,100 set y=x
+limits x y
+connect
+quit
+load demos
+sundial
+quit
+load demos
+sundial
+device bgi vga swap
+sundial
+quit
+load demos
+sundial
+quit
+load demos
+sundial
+quit
+load demos
+sundial
+quit

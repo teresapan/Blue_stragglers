@@ -1,0 +1,29 @@
+# This is a typical sm.rc file for a PC user.
+# By default, the settings are adapted to Windows(TM).
+# Comment the first group and uncomment the second one
+# if you are using the BGI version.
+
+filecap		e:/sm2_3_1/filecap
+fonts		e:/sm2_3_1/fonts.bin
+graphcap	e:/sm2_3_1/graphcap
+help		e:/sm2_3_1/help/
+history		80
+history_file	sm.hf
+macro		e:/sm2_3_1/macro/
+macro2		e:/sm2_3_1/user/
+printer		postscript
+temp_dir	e:/sm2_3_1
+termcap		e:/sm2_3_1/termcap
+term		pchard
+# term		pcansi	# this line is if your screen has more than 25 lines,
+			# and you want to use ANSI(TM) emulation.
+			# (On a PC, you must have ANSI.SYS installed)
+name		larry
+TeX_strings	1
+
+# These settings are Windows(TM)-specific.
+# device	win
+
+# These settings are BGI-specific.
+bgipath		c:/borlandc/bgi
+device		bgi

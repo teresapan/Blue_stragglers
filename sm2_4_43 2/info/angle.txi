@@ -1,0 +1,29 @@
+@node Angle, Apropos, And, Commands
+
+@iftex
+@syntax Angle.
+@end iftex
+@pindex Angle
+@example
+Syntax: ANGLE expr
+@end example
+
+   For most purposes only the first element of the expr is used, let's
+call it @code{D} as it's an angle in degrees.
+
+   ANGLE will cause text from LABEL to come out @code{D} degrees
+anti-clockwise from horizontal. It also causes points to be rotated
+counter-clockwise by @code{D} degrees.
+
+If @code{D} is non-zero it will force axis and other labels to be
+written with SM's internal fonts, and will overrule the
+tendency to put x-axis labels horizontal, and y-axis labels vertical.
+
+   For plotting points the full vector of values is used, with the
+point rotated by the value of expr. If more points are specified than
+the dimension of expr, the first element will be used for the excess.
+
+The current value of @code{ANGLE} is (almost) always available as the variable
+@code{$angle} (it is one of the special variables that are affected by the
+@code{DEFINE variable |} command).
+@findex internal variables, angle

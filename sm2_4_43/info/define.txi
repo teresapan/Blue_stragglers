@@ -1,0 +1,238 @@
+@node Define, Delete, Data, Commands
+
+@iftex
+@syntax Define.
+@end iftex
+@example
+Syntax: DEFINE name value
+        LOCAL DEFINE name ...
+        DEFINE name @{ value_list @} [ \[ INTEGER, INTEGER \] ]
+        DEFINE name < value_list > [ \[ INTEGER, INTEGER \] ]
+        DEFINE name @r{DELETE}
+        DEFINE name @r{LOCAL}
+        DEFINE name ( expr )
+        DEFINE name :
+        DEFINE name |
+        DEFINE name ? [ @{ prompt @} ]
+        DEFINE name ? [ < prompt > ]
+        DEFINE name @r{READ} INTEGER
+        DEFINE name @r{READ} INTEGER INTEGER2
+        DEFINE name @r{IMAGE}
+        @r{IMAGE} DEFINE name  value
+        LIST @r{DEFINE} [ begin end ]
+@end example
+@pindex define
+@findex variables, defining
+@findex local, variables
+
+All of these varieties of DEFINE define variable @code{name} to have some
+value, but
+as variables can be defined in all sorts of ways there are a good
+many possibilities. With the prefix LOCAL (which is allowed in front
+of @emph{any} of the DEFINE commands), the variable will be local to the
+macro; (@pxref{Local}).
+
+@code{Name} is a single word starting with a letter, and
+containing only letters, digits, or `_', and may be a keyword.
+Whenever SM comes across
+@code{$name}, it is interpreted as a reference to variable @code{name} and
+@code{$name} is replaced by its value.
+(Note that some variables such as @code{date} are special as they always
+contain an up-to-date value, for an example try @code{echo $date} sometime.
+These variables are listed under @code{DEFINE name |}.)
+You can also evaluate expressions with @code{$(expr)}, for example
+@code{echo $(pi/2)}. The value can't be longer than about 80 characters,
+except for the @code{value_list} form in which case its length can
+be essentially infinite.
+
+If you just want to know if a variable is defined, then @code{$?name }
+is defined to have the value 1 if @code{name} is defined, and 0 otherwise.
+Variables are not usually expanded within double quotes or @{@}, but if you use
+the syntax @code{$!name} the variable will be expanded within double quotes;
+@code{$!!name} will be expanded anywhere.
+
+For the variants of DEFINE @code{name value} and DEFINE @code{name value_list},
+@code{value} is either a word or number, or a list.
+The difference between using
+@{@} and @code{<>} to delimit a list is that keywords can appear within @{@},
+but variables are not usually expanded.
+
+With the optional [ INTEGER, INTEGER ] clause (I apologise for the
+notation in the manual; those [] are required) you can choose a
+subrange, just as SUBSTR (@pxref{Strings}) can choose a part of a vector
+element.  For example,
+@example
+  define s <"/abc/def">[1,-2]  echo $s
+@end example
+prints
+@example
+  abc/d
+@end example
+@noindent
+Why is this useful? Because it provides a way of working around limits
+on lengths of vector elements; otherwise this example is equivalent to
+@example
+  define s (substr('/abc/def', 1,-2))  echo $s
+@end example
+
+DEFINE @code{name} DELETE, deletes a variable (see
+also the macro undef to undefine variables).
+@findex undefining variables
+
+DEFINE @code{name} LOCAL, which is only allowed within macros,
+creates a variable which will only be visible from the current macro, and from
+macros called by it (@pxref{Local}).
+Such local variables are automatically destroyed when
+leaving the macro within which they were created, and may not be explicitly
+deleted. This is similar to the behaviour of numbered variables, except that
+they really are local (i.e. they are only visible in the macro, and
+not in its descendents; SM's LOCAL variables have nested scope rather than
+being truly local).
+
+An alternative is to prefix the DEFINE command itself with LOCAL;
+@code{DEFINE me LOCAL  DEFINE me RHL} is exactly equivalent to
+@code{LOCAL DEFINE me RHL}.
+
+A common use for DEFINE LOCAL is:
+@example
+   define i local
+   foreach i @{ sorbus aucuparia @} @{ set $i local @}
+@end example
+@noindent
+to protect a FOREACH (or DO) variable, and all local vectors, in one simple
+line. It is because such loop variables are automatically destroyed that
+attempts to delete local variables are not reported at VERBOSE levels of
+1 or less.
+
+DEFINE @code{name ( expr )} defines a variable to have the value of
+a (scalar) expression. When possible, it is more efficient to use
+vectors to perform calculations on scalars, rather than putting them
+into variables. It is also more efficient (and more obscure!) to use
+numbered variables (macro arguments) than real named ones.
+As a special dispensation, the expression can be an element of a
+string-valued vector (elements of arithmetic vectors are allowed too
+of course).
+@findex string vectors into variables
+
+DEFINE @code{name :} defines the variable @code{name} from
+the environment file. If @code{name} can't be found, and is capitalised,
+SM will look for it in the environment (as a logical variable for VMS
+users).
+
+@code{DEFINE name |} is used to define a variable
+from an internal SM variable such as @code{expand} or @code{angle}.
+These variables can be listed with @code{LIST DEFINE |} (or by
+@code{LIST DEFINE} if @code{VERBOSE} is two or more); a possibly incomplete
+list is: @code{angle}, @code{aspect}, @code{ctype}, @code{cwd},
+@code{date}, @code{exit_status}, @code{expand}, 
+@code{fx1}, @code{fx2}, @code{fy1}, @code{fy2},
+@code{gx1}, @code{gx2}, @code{gy1}, @code{gy2},
+@code{ltype}, @code{ltype_expand}, @code{lweight},
+@code{nx}, @code{ny}, @code{ptype},
+@code{sdepth}, @code{sheight}, @code{slength},
+@code{distance}, @code{theta}, @code{phi},
+@code{uxp}, @code{uyp}, @code{verbose}, 
+@code{xp}, and @code{yp}. The
+current plot limits are @code{fx1} etc., (or @code{gx1} etc. in device
+coordinates), the size of the screen (in pixels, or dots, or whatever the
+hardware uses) is @code{nx * ny}, the current position (in user
+coordinates) is @code{(uxp,uyp) },
+the current position (in plot
+coordinates) is @code{(xp,yp)}, @code{exit_status} is the return code from the
+last @code{!} command,
+@code{sdepth}, @code{sheight}, and @code{slength} are the depth, height, and
+length of the last string drawn to the screen,
+@code{distance}, @code{theta}, and @code{phi} are the viewpoint for surface
+plots (@pxref{Viewpoint}),
+and the rest should be obvious. In the case of @code{angle}, @code{expand},
+and @code{ptype}, if you used a vector to set (e.g.) the expansion, the
+value given will be that of its first element, and there's also
+an extra value giving its dimension. This allows you to say things like
+@example
+if(dimen(<$angle>) == 2) @{ echo You used a vector angle command @}
+@end example
+@noindent
+@findex variables, accessing internal
+@findex internal variables, accessing
+@findex internal variables, date
+
+This sort of variable changed a little with version 2.1.1. The variables
+that you can use have not changed, but their usage has
+slightly. They are all defined for you when SM starts and each is always
+correct, tracking the current value of the corresponding internal variable.
+For example, try @code{echo $angle\n angle 45 echo $angle}. If you now
+say @code{define angle |}, @code{$angle} will cease to track the internal
+value and will remain fixed (the same effect can be achieved with
+@code{define angle 45}). When you say @code{define angle delete} it will
+once more track the internal value. Your old code will continue to work,
+but in many cases it is possible to remove the explicit definition
+with @code{|}. This special sort of variable will not be @code{SAVE}d,
+and will not show up if you list the currently defined variables (unless
+@code{VERBOSE} is two or more).
+
+DEFINE @code{name ?} will prompt you for the value
+of @code{name} at the keyboard, using the prompt string if given,
+otherwise the name of the variable. The old value of the variable (if
+defined) is printed within [], and is taken to be the default if you
+simply hit carriage return. As previously discussed, the difference between
+@{@} and @code{<>} is in the treatment of keywords and variables. If you
+don't want to use @{@} (probably because of something weird to do with when
+variables are expanded), you can always use quotes within @code{<>}.
+
+The versions of the DEFINE command including READ define variables from
+the current data file. DEFINE @code{name} READ @code{INTEGER}
+sets @code{name} to be line @code{INTEGER} of the current data file, while
+DEFINE @code{name} READ @code{INTEGER INTEGER2}
+defines @code{name} to be word @code{INTEGER2} of line @code{INTEGER}.
+@code{name} is subject to the usual restrictions. If the line begins with
+a @code{#} the first character is simply ignored when defining variables.
+
+DEFINE @code{name} IMAGE defines a variable from a file read with the
+IMAGE or TABLE command. Currently this only works for @code{NX}, @code{NY},
+@code{X0}, @code{X1},
+@code{Y0}, @code{Y1}, or any keyword from a FITS header. Any minus signs
+(@code{-}) appearing in @code{name} are converted to underscores (@code{_}),
+as SM doesn't allow @code{-} in a variable name.
+
+You can define further such variables using IMAGE DEFINE name value,
+a facility that is chiefly useful in connection with the WRITE IMAGE command
+(@pxref{Image}).
+
+LIST DEFINE lists all currently defined variables, or all those which are
+between @code{begin} and @code{end} alphabetically (asciily).  You can
+use LIST DEFINE | to list internal variables, or LIST DEFINE IMAGE
+to list image variable (@pxref{List}).
+
+@center Examples
+@display
+@end display
+@example
+DEFINE v1 5.993
+DEFINE label1 KPNO
+DEFINE label1 < National Optical Astronomical Observatory > 
+DEFINE v2 ($v1 + 3.4)
+DEFINE v1 DELETE
+DEFINE age ? @{ How old are you? @}
+DEFINE macros : WRITE STANDARD "$!macros"
+@end example
+@noindent
+(Note that we couldn't have used @code{<>} to prompt for your age, because then
+the ? after @code{you} would be treated as a keyword).
+
+To illustrate the @code{DEFINE name READ} commands, consider a file with
+the following lines:
+@example
+This is a file containing astronomical data
+Magnitude  Intensity  Wavelength  Error
+@end example
+@noindent
+Then using the @code{DEFINE} commands as follows:
+
+@example
+DEFINE title READ 1
+DEFINE labelx READ 2 3
+@end example
+@noindent
+will assign the string @code{This is a file containing astronomical data}
+to the variable @code{title}, and the word @code{Wavelength} to the variable
+@code{labelx}, so you can say @code{XLABEL $labelx}.

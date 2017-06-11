@@ -1,0 +1,18 @@
+@node History, Identification, Histogram, Commands
+
+@iftex
+@syntax History.
+@end iftex
+@example
+Syntax: HISTORY [ - ]
+@end example
+@pindex History
+@findex command history
+
+List the current commands stored in the buffer. For details on the
+history system, see @ref{History Editor}.
+With the optional minus sign, the history list is printed
+backwards which is probably what you want if you are thinking of it as
+a set of commands to repeat.
+It's possible to overload @code{list} to be a synonym for HISTORY, see
+`overloading' in the index.

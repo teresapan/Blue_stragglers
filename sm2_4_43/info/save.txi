@@ -1,0 +1,31 @@
+@node Save, Set, Return, Commands
+
+@iftex
+@syntax Save.
+@end iftex
+@example
+Syntax: SAVE [ @r{filename } ]
+@end example
+@pindex Save
+
+Save some or all of the current macros, variables, and vectors
+in file @code{filename}
+(if omitted the default is to use the value of @code{save_file} in your 
+@file{.sm}
+file, or failing that @file{sm.dmp}). The current history buffer may also
+be saved, as the macro @code{all}.
+
+You are prompted for whether you want to save
+variables, vectors, and macros (which includes @code{all}, the current
+playback buffer). Macros beginning
+## are @emph{not} saved, as they are assumed to be system macros.
+Variables and vectors whose names start with a `_' are assumed to be
+temporaries, and are not saved either.
+
+   The opposite to SAVE is RESTORE (@pxref{Restore}).
+You may want to use the MACRO
+DELETE WORD command to undefine macros from e.g. the @file{utils} macro file.
+See, for example, the macro @code{sav} (which can be overloaded).
+
+If VERBOSE (@pxref{Verbose}) is greater than 0, some extra information
+is printed.

@@ -1,0 +1,1023 @@
+@node Save and Restore, Vectors, Getting Help, Top
+@chapter Saving and Restoring a Session
+
+@findex save
+@findex macros, saving to disk
+@findex variables, saving to disk
+@findex vectors, saving to disk
+@findex restore
+If for some reason you want to stop a SM session for later
+resumption, and simply suspending the process, `@key{control-Z}', is not
+sufficient, (for instance the machine is going down), then the @code{SAVE} command will write a file containing all your currently defined
+macros, variables, and vectors, along with your current history buffer
+as the macro @code{all}. You will be prompted before each class of
+objects is saved, or you can put the answers on the command line.
+The file is ascii, and can be edited if you so
+desire. The filename defaults to @file{sm.dmp} if not specified, or to
+the value of @code{save_file} from your @file{.sm} file.
+@findex .sm, save_file
+If some bug has crawled unbeknownst to us into SM, and results
+in some sort of panic (such as a segmentation violation), a save file
+called @file{panic.dmp} is written to your temporary directory, no
+questions asked.
+@findex panic save file
+
+To restart, @code{RESTORE filename} will read them all back, using the
+same default file as for @code{SAVE} if no filename is specified, and
+@emph{replace} the current history buffer with the value of @code{all}
+from the savefile. Of course, you could write a macro to preserve the
+current buffer (see the definition of @code{edit_all} for hints).
+If the file wasn't written by @code{SAVE} it is assumed to be a
+SM history file, one of those written when you quit SM, and
+each line is assumed to be a command and written to the end of the
+history buffer. This is generally useful when you started SM
+in the wrong directory. It wouldn't be hard to write a macro to use
+@code{RESTORE} to read a history file into a macro.
+
+One problem with @code{SAVE} is that it saves lots of macros,
+including some of the system ones. Specifically, all macros are saved
+except those beginning with ``##''.
+This can be avoided with
+the @code{MACRO DELETE filename} command, e.g.  @code{MACRO DELETE utils
+SAVE 1 1 1 MACRO READ utils}.
+The macro @code{sav} discussed under `useful macros' will do this for
+you, and indeed not @code{SAVE} any macros that have been read with the
+@code{load} macro. This is probably the best way to use the @code{SAVE}
+command. In addition, @code{sav} also decides to save variables and
+macros, only prompting you about saving vectors. @code{sav} is a good
+candidate for overloading (as @code{save}), and indeed is one of the
+macros redefined by the @code{set_overload} command.
+
+@node Vectors, Labels, Save and Restore, Top
+@chapter Vectors and Arithmetic
+
+The basic unit of data in SM is the @file{vector}, a named set of one or
+more numbers or strings.  There is no limit to the number of vectors
+that may be defined.  SM allows the user to read vectors from files or
+define them from the keyboard, to plot them and to perform arithmetic
+operations upon them. SM's string-valued vectors are less generally useful,
+but can be used
+for such purposes as labelling points on a graph.
+@findex vectors, introduction
+
+To read a vector @code{vec} from a column of numbers in a file, where the
+filename has been specified
+using @code{DATA} and, possibly, the range of lines in the file to be used
+has been specified using the 
+@code{LINES} command, use @code{READ vec nn} where @code{nn} is the column number,
+or @code{READ @{ vec1 n1 vec2 n2 ... @}} to read many vectors.
+It is also possible to read a row, using @code{READ ROW vec nn}, where nn is
+the row number in the file. See @code{READ} for how to read a
+string-valued vector.
+
+Instead of using simple column-oriented input
+it is possible to specify a format like those used by C's @code{scanf}
+functions (Fortran formats are not supported); if you provide your own
+format string you can only read numbers.
+For example, if your data file has lines like
+@example
+	1:12:30  -45:30:11
+@end example
+@noindent
+you could read it with
+@code{read '%d:%d:%d %f:%f:%f' @{ hr min sec deg dmin dsec @}}.
+
+A vector may also be defined as @code{SET vec = x1,x2,dx} to take on
+the values @code{x1,x1+dx,...,x2}, where @code{dx} defaults to 1
+if omitted. If a scalar is
+encountered where a vector is expected, it is promoted to be a vector
+of the appropriate dimension; all other dimension mismatches are
+errors.  Example:
+@findex vectors, examples
+@example
+SET value = 5
+SET x = 0, 50, 2
+SET y = x
+SET y = x*0 + value
+SET y[0] = 2*pi
+SET y = value
+SET x=0,1,.1 SET y=IMAGE(x,1.5)
+SET s=str
+SET s='str'
+SET s[0]=1.23
+SET x=1.23
+SET s=x
+SET s=STRING(x)
+@end example
+@noindent
+will define a scalar, @code{value}, with a value of 5, then define a vector,
+@code{x}, with  26 elements, valued 0, 2, 4, 6,..., 50, then define another
+vector, @code{y} with size 26 and the same values as @code{x},
+set all 26 elements of @code{y} to have the value 5,
+set the first element of @code{y} to be 2 pi,
+set @code{y}
+to be a vector with one element with value @code{5}, and finally
+set @code{y} to be a vector with the values taken from a horizontal
+cross-section from 0 to 1 through the current image. Unless a vector
+@code{str} is defined @code{SET s=str} is an error; to make @code{s} a
+string-valued vector use @code{SET s='str'}. 
+@code{SET s[0]=1.23} makes @code{s[0]} have the value @code{"1.23"} (a string),
+as @code{s} is now a pre-existing string vector.
+An arithmetic vector @code{x} is then
+defined, and @code{s} is redefined as an arithmetic vector too -- you must
+be careful when dealing with string vectors! Finally, we explicitly
+convert an arithmetic vector to a string-valued one with the @code{STRING}
+operator.
+This is a somewhat
+contrived example, designed mainly to illustrate the convenience of the
+@code{SET} command. The ability to set particular elements is mostly
+used in macros such as @code{smirnov2} which calculates the
+Kolmogorov-Smirnov statistic from a pair of vectors.
+
+If you don't have many data points, rather than type them into a file, and use
+@code{READ vec nn} to define a vector, you can use the command
+@example
+SET vec = @{ list @} 
+@end example
+@noindent
+For example
+@example
+SET r = 0,10 
+@end example
+@noindent
+is equivalent to
+@example
+SET r = @{ 0 1 2 3 4 5 6 8 9 10 @} 
+@end example
+In fact, @code{@{ list @}} is an expression, so
+@code{SET vec = 2*@{1 3 1@}} is also legal.
+If the first element of a list is a word, the vector is taken to be
+string-valued: @code{SET s=@{ William William Henry Steven @}} defines a
+4-element string vector, or you can use a string in quotes:
+@code{SET s=<'1' 2 3 4>} (if you used @code{SET s=@{'1' 2 3 4@}} the first
+element would be @code{'1'} rather than @code{1}).
+Once a vector is defined, you can write it to a file for later study using the
+@code{PRINT} command.
+
+A scalar may be an integer, a floating point number, a scalar
+expression, @code{DIMEN(vector)}, or @code{WORD[expr]}. The last two are the
+dimension of a vector, and an element of the vector with @code{expr} a
+scalar subscript. @emph{Note that subscripts start at 0 and that @code{[ ]}
+@file{not} @code{()} are used to subscript variables}.
+The expression @code{WORD[expr]} is in fact allowed even if @code{expr}
+is not a scalar, in which case the result is a vector with the same
+dimension as @code{expr}, and with the values taken from @code{WORD} in
+the obvious way.
+
+Once vectors are defined, they may be combined into expressions using
+@findex vectors, operators
+the operators @key{+}, @key{-}, @key{*}, @key{/}, @key{**},
+@code{CONCAT} and the
+functions @code{COS(), SIN(), TAN(), ACOS(),
+ASIN(), ATAN(), ATAN2(), ABS(), DIMEN(), INT(), LG(), EXP(), LN(),
+SQRT(), STRING(), STRLEN()}, and
+@code{SUM()}. 
+The meaning of most of these is obvious, @code{ATAN2} is like @code{ATAN}
+but takes two arguments, @code{x} and @code{y} and returns an angle in the
+proper sector.
+@code{DIMEN} returns the number of
+elements in a vector, @code{SUM} gives the sum of all the elements, 
+@code{CONCAT} concatenates two vectors,
+@findex concatenate
+@code{INT} gives the integral part of a vector, @code{STRING}
+converts a number to a string, and @code{STRLEN} gives the length of a string
+(in plotting units, not just the number of characters). @code{STRING} uses
+the same code as the axis-labelling routines, so @code{FORMAT} can be used
+to modify its behaviour; whether the x- or y-axis formats is used depends
+on whether the label is more nearly horizontal or vertical.
+An example would be
+@example
+set x=3.08e16 define s (string(x)) relocate 0.5 0.5 putlabel 5 $s
+@end example
+@findex number, as a string
+@findex vectors, concatenating
+The precedence and binding are
+as for C (or Fortran), and may be altered by using parentheses
+(@code{CONCAT} has a binding just below @key{+} and @key{-}).
+All of these operators work element by element, so 
+@example
+y = 2 + sin(x)
+@end example
+@noindent
+is interpreted as 
+@example
+@tex
+$y_i = 2 + \sin(x_i)$
+@end tex
+@end example
+@ifinfo
+@example
+y_i = 2 + sin(x_i)
+@end example
+@end ifinfo
+If there is a size mismatch the operation will only be carried out up
+to the length of the shorter vector and a message is printed; if
+@code{VERBOSE} is 1 or more, the line where the error occurred will
+be printed too.
+The constant @code{PI} is predefined.
+
+You can also use @code{WORD([ expr [ , @dots{} ]])} as part of
+an expression, where @code{WORD} is a macro taking zero or more arguments.
+@findex vectors, macro as function
+Suppose we define a macro @code{pow} with two arguments as
+@example
+SET $0 = $1**$2 
+@end example
+@noindent
+then the command
+@example
+SET y = 10 + 2*pow(1 + x,3)
+@end example
+@noindent
+is equivalent to @code{SET y = 10 + 2*(1 + x)**3}.
+
+In addition to these arithmetic operations, there are also logical
+operators @code{==} (equals), @code{!=} (not equals),
+@code{>}, @code{>=}, @code{<}, @code{<=}, @code{&&}
+(logical and), and @code{||} (logical or). The meanings of the symbols are the
+same as in C, and as in C the value 0 is false while all other values are true.
+Note that @code{&&} and @code{||} do @emph{not}`short-circuit'; that is,
+in the expression @code{expr1 && expr2} both @code{expr1} and @code{expr2}
+are evaluated.  In a scalar context (e.g. in an IF statement), the operators
+@code{AND} and @code{OR} are available instead, and they do only evaluate
+the right hand side if it's value is required (@pxref{If}).
+
+String vectors may only be concatenated, added, or tested for (in)equality.
+Adding two string-valued vectors concatenates their elements, so
+@example
+@{ a b c @} + @{ x y z @}
+@end example
+@noindent
+results in the vector @code{ax by cz}.
+
+Testing equality for string vectors seems to cause some confusion. Consider
+@example
+set str=<'a' b c d>
+if('a' == 'str') @{     # test if the strings `a' and `str' are equal
+if('a' == str) @{       # test if the string `a' equals the vector `str'
+if(a == str) @{         # test if the vector `a' equals the vector `str'
+@end example
+@noindent
+The second of these tests will succeed, but if you then try
+@example
+if('b' == str) @{       # try to see if `b' is an element of str
+@end example
+@noindent
+the test will fail as @code{'b' == str} is the 4-element vector
+@code{@{ 0 1 0 1 @}} and only its first element is used by the @code{if} test;
+what you want is
+@example
+if(sum('b' == str)) @{  # is `b' an element of str?
+@end example
+
+There are also a number of less mathematical operations.  If you have an
+@code{IMAGE} (@pxref{Image}) defined, you can extract a set of values
+using the expression @code{IMAGE(expr,expr)}, where the two @code{expr}s
+give the coordinates where the values are desired. Note that this may be
+used as a way of reading large data files that are stored unformatted.
+The expression @code{HISTOGRAM(expr : expr) } can be used to convert a
+vector into a histogram. The second expression is taken to be the
+centres of the desired bins: bin boundaries are taken at the mean points
+(and points in the first expression lying on a boundary are taken to
+fall into the lower bin. Note the use of `:' not `,').
+
+Vectors may be assigned to, using the syntax
+@findex vectors, assignment
+@example
+SET vec = expr
+@end example
+@noindent
+or
+@example
+SET vec[ expr ]  = expr
+@end example
+@noindent
+or
+@example
+SET vec = WORD(expr)
+@end example
+@noindent
+or
+@example
+SET DIMEN(vec) = number
+@end example
+@noindent
+or
+@example
+SET vec = expr1 IF(expr2)
+@end example
+@noindent
+or
+@example
+SET  vec = expr1 ? expr2 : expr3
+@end example
+@noindent
+The first form sets @code{vec} to have the value @code{expr}, element by
+element, @code{vec} is the name of the new vector. The form 
+@code{vec[expr]} may be used to assign to an element of a vector, as usual
+the index starts at 0. Before you can use @code{SET} to assign values to the 
+elements of a vector, you must create it using one of the other forms
+of the @code{SET} command.
+
+If you want to define a vector to which you will subsequently assign values 
+using @code{SET vec[ expr ] = expr}, you may use @code{SET DIMEN(vec) = number}
+which declares @code{vec} to be a vector of size @code{number}, and
+initialises it to zero. You can optionally supply a qualifier to the
+@code{number}, either a @code{.f} (the default), or a @code{.s} to
+specify that the vector is string valued.
+@findex vectors, declaring
+
+@findex vectors, conditional assignment
+If the @code{IF} clause is present, only those
+elements of @code{expr1} for which the corresponding element of @code{expr2} is
+true
+(non-zero) are copied into @code{vec}; in general @code{vec} will have a
+smaller dimension than @code{expr1}. The last @code{SET} statement (with ?:)
+again borrows
+from C. If @code{expr1_i} is true, then @code{vec_i} is set
+to @code{expr2_i}, otherwise it is
+set to @code{expr3_i}.  In this form of conditional assignment, the dimension
+of @code{vec} is the same as that of the right hand side. It may look
+strange, but it can be just what you want.
+
+@findex vectors, help
+Each vector also has a help field, which may be used to provide a string
+describing the vector. The field is set by 
+@example
+SET HELP vec str
+@end example
+and
+viewed by 
+@example
+HELP vec
+@end example
+@noindent
+or via the string-valued expression @code{HELP(name)}.
+
+If @code{VERBOSE} is one or more, if a vector is arithmetic or string
+will also be noted. Vectors may be printed using the
+@example
+PRINT [ file ] [format] @{ vec1, @dots{}, vecn @}
+@end example
+@noindent
+command, where if the optional
+@code{file} is missing, the values are typed to the keyboard; if the
+optional @code{format} is omitted, a suitable one will be chosen for you.
+Any combination of string- and arithmetic-vectors may be printed.
+If a value
+exceeds 1e36 (or 1e300 if you chose double-precision vectors in @code{set_opts}), it is printed
+as a @kbd{*}. This is consistent with the
+convention used in reading data that a `missing' number is represented
+as 1.001e36 (1.001e300); see @code{READ} for details.
+Vectors may be deleted with the command 
+@example
+DELETE vec
+@end example
+and listed with the command 
+@example
+LIST SET
+@end example
+@findex listing, vectors
+@findex vectors, listing
+Vectors are listed in ascii order along with their
+dimension, and any help string specified using the @code{SET HELP} command
+
+Once you start writing (or using) complicated macros you'll get bitten by
+the fact that a macro called by a macro called by a friend's macro uses
+a scratch vector called @code{x} or @code{i}, and that this vector quietly
+overwrites @emph{your} vector called @code{x} or @code{i}. To avoid this,
+conscientious macro writers make their vectors LOCAL.
+@footnote{well, to be honest the
+LOCAL command's a recent addition to SM so there are lots of macros out there
+that don't do this}.
+After the command @code{SET x LOCAL} in a macro, any redefinitions of @code{x}
+within that macro, or any macros called by it, will be discarded when the
+macro exits. The vector isn't strictly speaking local to the macro as it's
+visible from macros that are more deeply nested, but the effect is similar.
+A word on caution: a macro can exit sooner than you expect; the classic
+example is
+@example
+cube     11      # print a vector's cube for people we like
+                 define name local  define name :
+                 if('$name' != 'Thatcher') @{
+                        set x local  set x = $1
+                        set x = x*x*x
+                        print The answer is $(x)
+                 @}
+@end example
+@noindent
+Because the @code{if} might be followed by an @code{else}, the macro is
+read and popped from the input stack @emph{before} it's executed, causing
+confusion.
+
+An @code{IF} clause has been
+added to the plotting commands, to allow only those elements of a
+vector which satisfy some condition to be plotted, for example 
+@example
+POINTS x y IF(z > 3*x)
+@end example
+@noindent
+Of course, you could have used the @code{IF} command and the regular
+@code{POINTS} command if you had preferred. In fact,
+@example
+CONNECT x y IF(z > 3*x)
+@end example
+@noindent
+isn't quite the same as
+@example
+SET log = z > 3*x SET x = x IF(log)  SET y = y IF(log) 
+@c 
+CONNECT x y
+@end example
+@noindent
+as the former will only connect contiguous points.
+
+@node Labels, Hardcopy, Vectors, Top
+@chapter Drawing Labels and SM's @TeX{} Emulation
+@pindex TeX strings
+
+There are two separate ways to specify special characters to
+SM, by using a syntax
+very similar to @TeX{} (the type-setting system created by Donald Knuth
+that we used for this manual), or the traditional Mongo way. You might
+ask what are the advantages 
+of @TeX{}? One is that sub- and super- scripts are handled much more naturally,
+making it much harder to type
+@tex
+$M_{\rm V = -8}$
+@end tex
+@ifinfo
+M_@{V = -8@}
+@end ifinfo
+when you meant
+@tex
+$M_{\rm V} = -8$.
+@end tex
+@ifinfo
+M_V = -8.
+@end ifinfo
+Another is that you no longer have to remember that
+@tex
+$\theta$
+@end tex
+@ifinfo
+theta
+@end ifinfo
+is hidden
+in the Greek font as `q', you can simply type @code{\theta}. A
+third would be that you may well know @TeX{} already.
+
+If you want to make SM understand @TeX{} strings
+you should define the variable
+@code{TeX_strings} (if you put a line
+@code{TeX_strings 1} in your @file{.sm} file this will be done automatically).
+@findex .sm, TeX_strings
+You can, of course, undefine it at any time to revert to the old-fashioned
+strings described below.
+@findex TeX, using in labels
+Using @TeX{}-style
+strings is strongly recommended by the authors; all future and most
+recent improvements to SM's labels are only supported in @TeX{} mode.
+
+If you want to change the default font used for labels, define the variable
+@code{default_font}; if you wanted to use the @code{\oe} (Old English)
+font you could either say (@code{DEFINE default_font oe}) interactively,
+or put a line in your @file{.sm file}: @code{default_font oe}.
+This affects axis as well as regular labels and
+only works if you use @code{TeX_strings} (of course).
+@findex .sm, default_font
+
+For some devices with hardware fonts (for example, postscript printers
+or a Tektronix 4010 terminal), if @code{expand} is exactly 1, and
+@code{angle} is exactly 0, the hard fonts will be used for speed.
+Various strategies to defeat this are discussed below.
+
+@menu
+* TeX Intro::			An Introduction to @TeX{}
+* TeX Fonts::			Available Fonts
+* TeX Control Sequences::	SM's @TeX{} Control Sequences
+* TeX Extensions::		SM's Extensions to @TeX{}
+* Caveats::			Caveats and Cautions when using @TeX{}
+* Defeating Hardware Fonts::	How to Stop the Device using its Fonts
+* Old Labels::			Old-style Labels
+@end menu
+
+@node TeX Intro, TeX Fonts, , Labels
+@section An Introduction to @TeX{}
+@iftex
+(@TeX{}sperts should skip this section.)
+@end iftex
+If you don't know @TeX{}
+let's start with an example:
+@example
+label \pi^@{\-21/2@} = @{\3\int@}e^@{-x^2@}\,dx
+@end example
+@noindent
+will print a well-known result (You'll have to @code{RELOCATE} somewhere
+where the label will be visible first, of course).
+(If
+you want to try it now, you should be careful typing those ^'s, as
+they are special to the history editor, dealing with this is
+discussed below.) In 
+this example the characters @code{\}, @code{@{}, @code{@}}, and @code{^}
+are special (and so is @code{_} which wasn't used). Postponing @code{\}
+for the moment, @code{^} means `make the next group a superscript',
+@code{_} means `make the next group a subscript', where a group is
+either a single character, a single control sequence (wait a moment!), or a
+string enclosed in braces. So @code{A_a^@{SM@}B} would appear as
+@tex
+${\rm A_a{}^{SM}B}$.
+@end tex
+@ifinfo
+A_a^@{SM@}B (which loses something in an info file...).
+@end ifinfo
+A @code{\} can serve one of two functions, either
+turning off the special meaning of the next character (so @code{\_}
+is simply a @code{_} with no special significance), or to introduce a
+named `control sequence'. These fall into three groups, those that
+change fonts, those that serve as abbreviations for single
+characters (e.g. @code{\pi} in the example), and those that are macros.
+The font changes persist
+until the end of the string, or the current group, whichever comes
+first.
+
+@node TeX Fonts, TeX Control Sequences, TeX Intro, Labels
+@section Available Fonts
+
+The available fonts are 
+`greek', `old english', `private', `roman', `script', and `tiny'. They
+may be referred to either by a
+two-character control sequences (@code{\gr}, @code{\oe}, @code{\pr},
+@code{\rm}, @code{\sc}, or @code{\ti}) or simply by the first character
+(e.g. @code{\r} for the roman font).
+In addition @code{\i} or @code{\it}
+can be used to make the current font italic (remember to use italics
+within @code{@{@}} so that their effect is limited!).
+The `bold' font @code{\b} or @code{\bf} is makes the current font bold,
+and can be toggled off with a second
+@code{\bf} if you didn't simply group it. I'd strongly recommend
+treating @code{\bf} like any other font change, and
+group them rather than relying on this toggling action.
+
+The slant of @code{\it} letters can be controlled by the command sequence
+@code{\slant}, which takes an argument which is the tangent of the desired
+slope (i.e. it is the degree of shear). You can also compress all letters
+along the direction that they are being written using @code{\condense}; for
+example @code{@{\slant0.4\condense0.5 Hello World@}}.
+
+You can alter the size of the letters
+by using an escape such as @code{\6} which scales the current group
+(any font change is local to a group).
+@code{\6} corresponds to multiplying the size by
+@tex
+$1.2^6$
+@end tex
+@ifinfo
+1.2^6
+@end ifinfo
+or
+about 3, @code{\-4} scales by
+@tex
+$1/1.2^4$
+@end tex
+@ifinfo
+1/1.2^4
+@end ifinfo
+or 0.48. This is similar to
+the `magstep' used in scaling fonts in @TeX{}.
+These scale factors
+are in addition to the expansion produced by going
+up or down (@code{^} or @code{_}), or setting @code{EXPAND}.
+
+@node TeX Control Sequences, TeX Extensions, TeX Fonts, Labels
+@section SM's @TeX{} Control Sequences
+
+Other control sequences either consist of one non-alphabetic
+character, or else a name consisting only of letters, so @code{\,} or
+@code{\palmtree} is valid but @code{\one2three} is not. If a
+alphabetic name is followed by a space, the space is treated as simply
+delimiting the name and is discarded. For example,
+@code{AB^@{\alpha_\beta CD@}} will appear as
+@tex
+$AB^{\alpha_\beta CD}$
+@end tex
+@ifinfo
+AB^@{alpha_betaCD@}
+@end ifinfo
+(note that the space after @code{beta} disappeared). How do you make
+just a few characters italic (script, old english, etc.)? Try
+@code{ABC@{\it DEF@}GHI}. You can't read a subscript, and want it in
+`tiny' font? Try @code{\Lambda_@{\ti ab@}}. All of the Greek letters are
+defined, as @code{\alpha}-@code{\omega},@code{\Alpha}-@code{\Omega},
+there are various mathematical symbols (e.g. @code{\int}, @code{\infty},
+or @code{\sqrt}), some astronomical (e.g. @code{\AA} for
+@tex
+\AA),
+@end tex
+@ifinfo
+an Angstrom symbol),
+@end ifinfo
+@noindent
+and some
+miscellaneous characters (e.g. @code{\snow} to draw a snowflake). 
+You can generate 
+a complete list of definitions by saying @code{load fonts TeX_defs}.
+@findex TeX, definitions
+
+Some of these definitions are more complex than just special characters,
+if you know @TeX{} most of them should be familiar.
+@table @code
+@item \bar str
+Draw a bar over @code{str}.
+@item \border n str
+Add an n-pixel border of whitespace to @code{str} and draw it.
+@item \centre
+@itemx \center
+Center a string horizontally
+@item \colour
+@itemx \ctype
+@itemx \color
+Change to the specified colour.
+@item \over str1 str2
+Draw @code{str1} over @code{str2}, separated by a horizontal line. This isn't
+nearly as sophisticated as @TeX{}'s @code{\over}, and never will be.
+It's written in SM's @TeX{} emulator which is pretty limited. If you are
+a La@TeX{} user, SM's \frac may be more familiar.
+@item \phantom str
+Don't actually draw @code{str}, but take up as much space as @code{str}
+would have if you @emph{had} drawn it.
+@item \smash str
+Draw @code{str} but pretend that it took up no space.
+@item \strut
+Make the current formula have at least the depth and height of a parenthesis.
+@end table
+
+You can also define your own @TeX{} definitions by using the special
+command @code{\def\name@{value@}} inside a label. It produces no output,
+but defines @code{name} to expand to @code{value}. For example, I could define
+@code{\TeX} to produce @TeX{} by saying
+@example
+LABEL \def\TeX@{T\raise-200\kern-20E\raise200X@}.
+@end example
+Once a
+definition has been made it is remembered forever (well, until you
+leave SM actually) whatever devices you plot on. You must make sure that
+all curly brackets are properly paired inside your definition. You
+can have arguments just like real @TeX{}, referred to as @code{#1},
+@code{#2}, @code{#3} and so forth, for example
+@example
+\def\sub#1@{_@{#1@}@}
+@end example
+
+Your SM guru can compile @TeX{}-definitions into the binary fonts
+file, instructions are given in the fonts appendix.
+
+@node TeX Extensions, Caveats, TeX Control Sequences, Labels
+@section SM's Extensions to @TeX{}
+
+@findex TeX, extensions
+We have made a number of extensions to @TeX{} that are useful in
+a plotting package, but wouldn't be especially valuable in a printed document.
+We have also distorted the meanings of some of @TeX{}'s control words; sorry.
+
+@table @code
+@item \point n s
+@itemx \apoint angle n s
+Insert a points (such as would be drawn with @code{DOT}) into a label. The
+string @code{\point43} (or @code{\point 4 3}) will draw a point at the
+current position in the string, of @code{ptype} `4 3'. This sequence,
+from the @code{\} to the @code{3}, is treated as a single character as regards
+things like subscripts. If you want to specify an angle, use something like
+@code{\apoint 45 4 0}.
+
+@item \hrule width
+Draw a horizontal line at the level of the current baseline, of length
+@code{width} in screen units. It will be multiplied by the current
+expansion. 
+
+@item \kern dx
+@code{\kern #} moves the current plot position by @code{#}
+horizontally, where the distance
+@code{#} is specified in screen units (the whole screen is 32768
+across). It is multiplied by the expansion currently in effect, and may be
+positive or negative. See also @code{\raise}.
+
+@item \line type length
+@code{\line} inserts a line into a label, at about the level of the
+middle of a lower-case character.
+e.g. @code{\line 1 1000} will draw a line of length 1000 (in screen
+units, so the screen is 32768 across), of ltype 1.
+See also @code{\hrule}.
+
+@item \move dx dy
+Move a group by @code{(dx,dy)}, but don't disturb SM's current idea of where
+it is. This means that we can draw a line over a character with a string
+such as @code{\move 0 300@{\line 0 400@}A}. It is possible to use the
+commands such as @code{\width} to take the guesswork out of such commands,
+for example the definition of @code{\bar} is
+@example
+\def\bar#1@{\move0\advance\height@{#1@}by100@{\rule\width@{#1@}@}#1@}
+@end example
+
+@item \raise dy
+@code{\raise #} moves the current plot position by @code{#}
+vertically, where the distance
+@code{#} is specified in screen units (the whole screen is 32768
+across). It is multiplied by the expansion currently in effect, and may be
+positive or negative. See also @code{\kern}.
+
+@item \vrule depth height
+Draw a vertical line at the current position of depth @code{d} and
+height @code{h} (and width 0) in screen units. Dimensions are multiplied by
+the current expansion.
+
+@end table
+
+There are also a number of control sequences that can be used whenever
+a number is expected (by @code{\kern}, @code{\line}, @code{\move},
+or @code{\raise});
+for an example of their use see @code{\move} in the preceding table.
+@table @code
+@item \advance num1 [ by ] num
+Increment first number (which can be of the form @code{\width@{@dots{}@}})
+by the second. The @code{by} is optional.
+
+@item \depth@{@dots{}@}
+The depth a group would have if it were drawn.
+
+@item \divide num1 [ by ] num2
+Divide the @code{num1} by @code{num2}/1000. As for @code{\advance},
+@code{num1} and @code{num2} need not be `simple' numbers but can be
+combinations of widths, advances, and so on. The @code{by} is optional.
+
+@item \height@{@dots{}@}
+The height a group would have if it were drawn.
+
+@item \multiply num1 [ by ] num2
+Multiply the @code{num1} by @code{num2}/1000. See @code{\divide} for the
+lack of restrictions on num1 and num2. The @code{by} is optional.
+
+@item \width@{@dots{}@}
+The width a group would have if it were drawn
+@end table
+
+If you want to know the dimensions of the string that you have just drawn
+(or just not drawn, q.v. PUTLABEL 0) you can look at the internal variables
+$sdepth,  $sheight, and  $slength.
+@findex internal variables, sdepth sheight slength
+
+@node Caveats, Defeating Hardware Fonts, TeX Extensions, Labels
+@section Caveats and Cautions when using @TeX{}
+
+@findex TeX, caveats
+Now for a few caveats: Firstly, because @code{\n} is a newline, you must type
+@code{\\nu} or @code{"\nu"} to get a
+@tex
+$\nu$.
+@end tex
+@ifinfo
+nu.
+@end ifinfo
+Secondly, the superscript
+character 
+@code{^} is special to the history editor, so to type it interactively
+you must quote
+it with the @code{quote_next} key (usually @key{control-Q} or ESC-q, i.e.
+type @code{@key{control-Q}^}). Alternatively, you could change your history
+character to some under-used character such as % or ' (which is the
+solution that I use: you can choose a new character such as ' by
+simply putting a line 
+@code{history_char '} in your @file{.sm} file).
+@findex weird, Can't enter superscripts
+Thirdly, @TeX{} (and our pseudo@TeX{}) are
+rather verbose and labels may not fit on one line. The solution is to
+continue the line by ending it with a \. This is probably best done
+within a macro, as the continuation line won't appear on your history
+list if typed at the prompt. You can currently have about 25
+continuation lines (2000 characters).
+
+A final point will only worry
+@TeX{}ies, namely that the emulation isn't perfect: for example
+@code{\sum_i} won't put the @code{i} beneath the summation symbol.
+Some of the other discrepancies were listed in the previous section.
+
+@node Defeating Hardware Fonts, Old Labels, Caveats, Labels
+@section How to Stop the Device using its Fonts
+
+If EXPAND is set to exactly 1, and ANGLE is exactly 0, then SM
+will use hardware fonts, when available, in writing labels. This is faster,
+but can lead to two styles of labels in one plot which is ugly.
+
+There are various ways to trick SM into always using its own fonts:
+you can say say ``ANGLE 360'',
+or use a \0 to select a font with (explicitly) no expansion. To
+affect the axis tick labels too, using the AXIS or BOX commands,
+you'll have to say ``EXPAND 1.0001'' or somesuch. 
+@findex labels, partly in different fonts
+
+Rather than always expanding your plots, you could ask your SM
+Guru to edit the @file{graphcap} file to prevent a given device
+(usually a printer) from ever using hardware fonts. Tell her to
+@pxref{Graphcap}. If she won't oblige, you can define your own device in
+your own graphcap file, and put yours first in the @file{.sm} file.
+For example, my @file{.sm} file includes the line
+@example
++graphcap    /d/rhl/graphcap
+@end example
+and the file @file{/d/rhl/graphcap} looks like:
+@example
+# Private overrides for RHL:
+#
+postscript|postscript + no hardware fonts:\
+        :TB@@:TE@@:TC=postscript:
+@end example
+@noindent
+Then I set @code{$printer} to @code{postscript} (also in @file{.sm})
+and all is well.
+
+An alternative is to specify the device as
+@example
+        DEVICE postscript :TB@@:TE@@:tc=postscript:
+@end example
+@noindent
+which is perhaps simpler (you'd just define your value of @code{printer}
+properly).
+
+@node Old Labels, , Defeating Hardware Fonts, Labels
+@section Old-style Labels
+
+If you insist on using old-style labels (which are still the default),
+here's a quick summary.
+Type @code{\a} or @code{\\a}
+to change to font
+@code{a} for one character (first form) or permanently (second
+form). The possible fonts are @code{g, o, p, r, s,} and @code{t} for
+`greek', `old english', `private', `roman', `script', and `tiny'
+respectively. In addition, the pseudo-fonts @code{u}  
+and @code{d} move text `up' and `down' respectively, and @code{i} produces
+`italic' (actually just slanted) characters.
+Size changes are just like any other font change, so
+@code{\6} and @code{\-4} will affect one character and the rest of
+the string respectively.
+This is really somewhat simpler than it sounds - try
+@example
+label \gp\u\-21/2\2\d = \3\g:e\u-x\u2\d\s dx
+@end example
+@noindent
+Note that `tiny' is a misnomer, it is (nowadays) just a font that
+look better if you need small letters (
+@code{\t\-6} will produce a shrunken `tiny' font, just like the
+old days).
+Spaces are treated differently in different fonts, as a greek space is
+a negative space (i.e. a backspace), and a script space is only half as
+wide as a normal space.
+
+@node Hardcopy, Overloading, Labels, Top
+@chapter Getting Hardcopies of Plots
+@findex hardcopy
+There isn't really any need for this section because SM doesn't
+distinguish between hardcopy devices such as laser printers and
+other devices such as graphics terminals, except that it saves up
+plotting commands for hardcopy devices and sends them all when you are
+finished. There are, however, hard and
+easy ways to do anything and this section is intended to make your life a
+little simpler.
+
+When a device that can produce hardcopy is closed the plot is sent off
+to the printer (using the command given as @code{SY} in the device's
+graphcap entry). The only way to close a device is to open another, any
+other, so it is just as good to say @code{dev x11} as it is to say
+@code{hardcopy dev x11} as the macro @code{hardcopy} does no more than
+open the null device. So one way to produce a plot is to say
+@example
+                device postscript
+                plotting commands
+                device x11
+@end example
+
+There are many different printers available, and even if you are using
+a postscript printer you might want portrait (@code{postport}) or
+landscape (@code{postland}) plots, so it is traditional to put the
+name of the desired printer into a variable @code{printer}. It is so
+traditional, indeed, that it can be done with a line such as
+@example
+printer     postport
+@end example
+in your @file{.sm} file.
+@findex .sm, printer
+
+The two commonest incantations are probably
+@example
+                device $printer
+                playback
+                device x11
+@end example
+@noindent
+or
+@example
+                device $printer
+                my_macro
+                device x11
+@end example
+@noindent
+which can be simplified to @code{hcopy} and @code{hmacro my_macro} respectively.
+The former
+can be given a single history number (e.g. @code{hcopy 12}) to only make
+a hardcopy 
+of the one command, or a range of numbers (@code{hcopy 1 12}) to plot
+those lines (inclusive). 
+The latter, if you omit the name of the macro, will prompt you to create
+a temporary macro that is then printed. If you want to make a hardcopy of
+the last line you have a choice, either @code{hcopy -1} or @code{hmacro},
+and then use the history editor to retrieve the desired line.
+
+Some sites have many hardcopy devices of the same type, in which case
+they usually set up the @code{SY} command to expect an argument
+which is the name of the desired printer. You can deal with this by including
+it in your @code{printer} variable: @code{define printer "postscript latypus"}
+but this can be a nuisance, especially as unix already has a special
+(environment) variable @code{PRINTER} that specifies your default printer.
+The resolution is that both @code{hcopy} and @code{hmacro} are quite
+careful; if you have an SM variable @code{PRINTER} it is taken to be your
+default printer; if you @emph{don't} have one they look for one in your
+@file{.sm} file, if they don't find one there they look for an
+environment (VMS: logical) variable. If all of these fail they take the
+first argument (@code{hcopy}) or last argument (@code{hmacro}) to be the name
+of the printer.
+@findex .sm, PRINTER
+
+So if you have a @code{PRINTER} variable anywhere, @code{hcopy} and
+@code{hmacro macro_name} will work as before, if you don't then you'll have
+to say @code{hcopy printer_name} or @code{hmacro macro_name printer_name}.
+
+@node Overloading, Useful Macros, Hardcopy, Top
+@chapter Overloading Keywords
+
+@findex overload
+@findex changing meanings of commands
+Sometimes you might wish that SM's authors had decided to make
+a command behave a bit differently, for instance that @code{ERASE} or
+@code{QUIT} didn't appear on the history list, or that @code{SAVE} deleted
+all the system macros before saving your environment. Of course, you can
+(usually) write macros to get around these annoyances, but you @emph{can't} easily give them the same names as the original commands (for these
+examples the macros are called @code{era}, @code{q}, and @code{sav}).
+
+It is possible to change the meaning of keywords (to `overload' them),
+but it can be confusing, primarily because your
+new commands may not behave the same way that this manual claims.
+For example, if you were perverse, you could define @code{points}
+to mean @code{QUIT}. Another danger is that you could end up with a
+recursive call -- for instance if you wrote your own version of @code{box} that did all sorts of cunning things, then drew a box. If you
+said @code{box} in your macro, then overloaded the keyword, you'd have
+a macro that called itself. If you tried to use it, nothing would
+happen for a while, and then you'd start getting messages about ``extending
+i/o stack'' until you hit @key{control-C}. Or if you redefined @code{help} to mean
+@code{DELETE HISTORY HELP} (in upper case to avoid recursive calls, and
+in case @code{delete} has been overloaded), then @code{set help vec Help string}
+won't work (you'd have to use @code{set HELP vec @dots{}}).
+@findex weird, commands misbehave
+@findex weird, commands redefined
+
+Despite these warnings, overloading the meaning of
+SM's keywords can be very convenient. There are two sets of
+system macros that do just this, the compatibility ones (@pxref{Mongo}),
+and one called @code{set_overload} that is described below.
+
+In addition to the semi-trivial use of overloading to allow you to type
+@code{erase} not @code{era}, it is possible to add extra functionality
+to simple commands. For example, @code{set_overload} defines @code{window}
+to save the window parameters in variables, and @code{box} then uses these
+values to label appropriate axes in touching boxes. Another example is that
+(when overloaded) @code{lines} saves the line numbers used, so that you
+can write a macro to print the top 10 lines of a file (it's called @code{head}).
+
+So how do you do it? The command @code{OVERLOAD keyword #} will remove
+the special meaning of @emph{lowercase} @code{keyword} if @code{#} is
+non-zero, or reinstate it otherwise. You can still use the uppercase form
+-- you can't overload @emph{that}. So now that e.g. @code{box} has no
+special meaning you can define it to be a macro. What the @code{set_overload} macro does is to define new meanings for a number
+of keywords, the new definitions are in the macro file @file{overload}.
+If you intend using them (and I do all the time) you should look at
+this file.
+You can get them loaded by default by having a line @code{overload 1} in your
+@file{.sm} file.
+@findex .sm, overload
+If you don't like some, e.g. box, you can simply say @code{OVERLOAD
+box 0} in your private startup file (see `private initialisation')
+which is run after the system startup.
+
+Most of the changes are benign, but not all. For example, the
+new definition of @code{relocate} allows expressions, but it'll break
+if you try to say @code{relocate ( 100 1000 )} to move to absolute
+screen coordinates. You can still say @code{RELOCATE ( 100 1000)} of
+course, and that's why most of the system macros are actually written
+in uppercase. The definition of @code{box} (actually @code{bo},
+which @code{box} calls) may seem very complex, but
+it has to deal with @code{box \n} as well as @code{box 1 2}, and it
+must know if you have used the @code{WINDOW} command.
+This brings up another point -- if you overload keywords,
+you could slow SM down. It isn't that overloading is
+inefficient, it's just that the macros that replace the old keywords
+may do a good deal of work, @code{box} is a case in point. Even when
+the macro is short and to the point, it's still extra work to parse
+the original word and find its value as a macro.

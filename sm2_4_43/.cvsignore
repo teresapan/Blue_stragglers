@@ -1,0 +1,6 @@
+.config 
+Makefile
+cat_fonts fonts.bin jfonts.bin read_fonts 
+rasterise get_grammar
+diff.out make.out
+.gdb_history

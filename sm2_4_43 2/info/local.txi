@@ -1,0 +1,59 @@
+@node Local, Location, List, Commands
+
+@iftex
+@syntax Local.
+@end iftex
+@example
+Syntax: LOCAL @r{DEFINE} name value
+        DEFINE name @r{LOCAL}
+        LOCAL @r{set} name = expr
+        SET name @r{LOCAL}
+@end example
+@pindex local
+@findex variables, local
+@findex vectors, local
+@findex local, variables and vectors
+@findex scope, restriction for variables
+@findex scope, restriction for vectors
+
+Usually, SM's variables (@pxref{Define}) and vectors (@pxref{Set})
+have global scope, meaning that if you define one in a macro it is
+still defined when you return to the command prompt. This is often
+what you want, but not always; for example macros often define scratch
+vectors that must be explicitly deleted before returning. This is
+annoying, but a more serious problem is that two different macros
+can each set a vector called @code{i}, but mean different things.
+
+The solution to this is to make your vectors and variables @dfn{local} to
+a macro, meaning that they are only visible within that macro, and from
+any called from it. This is really a @dfn{nested scope} rather than local,
+but LOCAL is easier to type.
+Such local objects are automatically destroyed when they go out of scope.
+
+For example, if you define the macro @code{bar} as
+@example
+   macro bar 2 @{
+      echo $(goo)
+      set goo local 
+      set goo=$1
+      if(goo < $2) @{
+         bar $(goo+1) $2
+      @}
+      echo $(goo)
+   @},
+@end example
+@noindent
+the command @code{set goo=0 bar 1 5} will count from 0 to 5 and down again,
+and if you run the macro @code{yar} (defined as
+@code{macro yar @{ set foo local set foo=1\n@}}) the vector @code{foo} will
+not be defined at global scope.
+
+Note that, as usual, you may have to be a
+little careful to ensure that you don't exit a macro before you expect.
+The symptoms would be that your local variable or vector was already
+destroyed, or that
+it referred to one at less restrictive scope (@pxref{Command Internals}).
+The easiest fix is to add a comment line to the end of the macro.
+@findex weird, wrong local vector
+@findex weird, wrong local variable
+@findex weird, local vector doesn't exist

@@ -1,0 +1,25 @@
+@node Help, Histogram, Grid, Commands
+
+@iftex
+@syntax Help.
+@end iftex
+@example
+Syntax: HELP [ word ]
+@end example
+@pindex Help
+
+The HELP command tries to help you with @code{word}. If possible, it
+prints the entry from the @code{help} directory specified in your @file{.sm} file, the definition of @code{word} if it's a macro,
+the value of @code{word} if it's a variable, and the HELP string if it
+is a vector.
+If none of these are defined, HELP confesses defeat.
+You might want to use the abbreviation @code{h} which will not appear on
+your history list (or you could overload @code{help} itself). Further
+discussion of the @code{HELP} command is given in @xref{Getting Help}.
+
+If @code{word} is omitted it is assumed to be @code{HELP}.
+
+You can associate a help string with a vector with the command
+@code{SET HELP}.
+
+See also APROPOS and LIST.

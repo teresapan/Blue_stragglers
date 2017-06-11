@@ -1,0 +1,23 @@
+@node Data, Define, Cursor, Commands
+
+@iftex
+@syntax Data.
+@end iftex
+@example
+Syntax: DATA file
+@end example
+@pindex Data
+@findex I/O commands, data
+
+   Use file @code{file} as the source of data read with the READ command.
+The file is assumed to have numerical data in columns separated by spaces,
+or tabs. The range of lines specified by LINES is reset. If the file
+can't be opened for read, you will be warned. The variable @code{$data_file}
+is set to @code{file}.
+See the READ command to see how to read the data.
+You may need to quote the filename, e.g. @code{DATA "/usr/file"}, which
+you can do by using the macro @code{da}: @code{da /usr/file}.
+
+Perverse people who wish to use filenames such as @file{12} or
+@file{3.14} will find that they get syntax errors. If they must
+persist @code{DATA "3.14 "} will work.

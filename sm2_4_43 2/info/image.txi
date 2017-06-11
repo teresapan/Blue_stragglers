@@ -1,0 +1,221 @@
+@node Image, Key, If, Commands
+
+@iftex
+@syntax Image.
+@end iftex
+@example
+Syntax: IMAGE [n] file
+        IMAGE [n] file xmin xmax ymin ymax
+        IMAGE [n] file [ * : *]
+        IMAGE [n] file [ x1, x1 : *]
+        IMAGE [n] file [ * : y0, y1]
+        IMAGE [n] file [ x1, x1 : y0, y1]
+        IMAGE ( nx , ny )
+        IMAGE ( nx , ny ) xmin xmax ymin ymax
+        IMAGE CURSOR
+        IMAGE CURSOR WORD WORD WORD
+        IMAGE DELETE
+        IMAGE DEFINE variable value
+        WRITE IMAGE WORD
+@end example
+@pindex Image
+@findex 2-dimensional graphics, image
+
+Read an image from @code{file}, optionally specifying the range of
+coordinates covered by the data values. If you do not specify them
+they will be taken to be @code{0 nx-1 0 ny-1} where
+nx and ny are the dimensions of the image. If you specify
+@code{( nx, ny )} instead of a filename an empty image of the desired
+size will be created (@pxref{2-D Graphics}).
+
+   If you specify @code{n} the n'th IMAGE extension of a fits file
+will be read; the primary data unit (i.e. the start of the file)
+is n == 0.
+
+If you want to read part of an image you can specify the desired part
+using [ ... : ... ]; (n.b. those [] are part of the command you type,
+not optional parameters).  If you want the whole range use *, otherwise
+a pair of 0-indexed integers. In other words,
+@example
+IMAGE file
+and
+IMAGE file [ * : * ]
+@end example
+are identical; you can read only the first 100 elements of the first
+row of an image into a vector with
+@example
+IMAGE file [ 0,99 : 0,0]  SET x=IMAGE[*,*]
+@end example
+
+IMAGE CURSOR is identical to the CURSOR command (@pxref{Cursor}), 
+except that value of the image under
+the cursor is returned in addition to the position; IMAGE CURSOR WORD WORD WORD
+is equivalent to CURSOR WORD WORD, but it also generates a vector of
+image intensities.
+
+IMAGE DELETE will forget the current image and levels.
+
+The file format is specified using a @file{filecap} file, similar to
+@file{graphcap},
+and the entry to use in this file is given by the variable @code{file_type}
+(@pxref{2-D Graphics}).
+The file is unformatted, and should start with two integers giving the
+dimensions of the data
+array, followed by the data values written row by row.
+
+The current entries in @file{filecap} support files written from C,
+or from fortran in one of a variety of ways.
+For C programmers, DEFINE @code{file_type C}, the file should be written with 
+open/write/close.
+For Fortran, there are a variety of options depending on operating systems
+and the details of how the file was opened. Under Unix, simply DEFINE
+@code{file_type unix}. Under VMS you have a choice. You can either create a 
+variable record type file (@code{recordtype='variable'} in the @code{OPEN}
+statement) and choose @code{file_type vms_var}, 
+or set @code{recordtype='fixed'} choose @code{recl} to be the x-dimension
+of the array and define file_type to be @code{vms_fixed}. You @emph{must} set 
+@code{recordtype} in one of these two ways.
+By default, data is taken to be real (float in C), but this can be overridden
+in the filecap entry for a file type. There is also an entry for FITS files
+@findex FITS, file_type
+(FITS is the `standard' image transport format for astronomical images).
+If you want to use a different
+file type you'll have to learn about @file{filecap}
+(@pxref{2-D Graphics}),
+or else see your local SM Guru.
+
+So under VMS either your code should look like (file_type = @code{vms_var})
+
+@example
+        integer i,j
+        real arr(100,10)
+c
+        open(2,file=filename,form='unformatted',recordtype='variable')
+        i = 100
+        j = 10
+c now write your data into arr
+        write(2) i,j
+        write(2) arr
+        end
+@end example
+@noindent
+or, with file_type = @code{vms_fixed},
+@example
+        integer i,j
+        real arr(100,10)
+c
+        open(2,file=filename,form='unformatted',recl=100,recordtype='fixed')
+        i = 100
+        j = 10
+c write your data into arr here
+        write(2) i,j
+        do 1 j=1,10
+           write(2) (arr(i,j),i=1,100)
+1       continue
+        end
+@end example
+
+Under Unix, either of these programme fragments would work after omitting
+the record information from the open statement.
+
+See @ref{Set} for an example of creating an image from scratch or a vector.
+@findex images, made from vectors.
+
+If you have an image defined (using the IMAGE command), you can extract
+a cross-section using the @code{SET name = IMAGE ( expr , expr )} command. The
+two expressions give the (x,y) coordinates where you want the image to be
+sampled. For example,
+@example
+SET x=0,1,.01 SET z=IMAGE(x,0.5)
+@end example
+@noindent
+will extract a horizontal cross section through an image. You can also use
+@code{IMAGE[expr,expr]} to extract values via their indices, where either
+or both
+of the @code{expr}s may be @code{*} meaning "all values"; this is especially
+useful to those who like to use SM's images as a way of reading binary data.
+@findex IMAGE, converting too and from vectors
+
+An example of creating an image from scratch would be
+@example
+image (51,81) 0 1 0 1
+define NX image define NY image
+set ix=0,$NX*$NY-1 set iy=ix 
+set iy=int(iy/$NX) set ix=ix - $NX*iy
+set x=ix/($NX-1) set y=iy/($NY-1)
+set image[ix,iy] = sin(x)*sin(y)
+@end example
+@noindent
+If you have a vector @code{v} of size @code{NX*NY}, you can say
+@example
+set image[*,*] = v
+@end example
+@noindent
+to convert it to an image. The data is arranged row-by-row (i.e. in
+the fortran order).
+
+If you wanted to extract the top row of an image, after
+@example
+   define NY IMAGE  define NX IMAGE
+   set ix=0,$NX-1
+@end example
+you can get the top row with any one of
+@example
+   set rr=image[ix,$NY-1]
+   set rr=image[do(0,$NX-1),$NY-1]
+   set rr=image[*,$NY-1]
+@end example
+
+If you want to add 100 to every value of an image, you can say
+@example
+set image[*,*] = image[*,*] + 100
+@end example
+@noindent
+@findex 2-dimensional graphics, manipulating
+@findex IMAGE, manipulating
+It's obviously pretty easy to use SM to manipulate images point-by-point
+in this way.
+
+   You can write the current image to a file using WRITE IMAGE filename.
+Only a small subset of the images that SM can read can be written;
+currently your choices are "C", "CH", and "FITS"; all of these will
+write out floating point values (as images are stored as floats), and
+the FITS writer assumes that you have IEEE arithmetic, in conformity to the
+FITS standard.
+All current image keywords (i.e. those available via DEFINE name IMAGE) are
+written to the FITS header; you can define further keywords with
+IMAGE DEFINE name value.
+@findex IMAGE, writing out
+@findex IMAGE, headers
+@findex IMAGE, defining header values
+
+Writing and reading images is an space- and time-efficient way of
+saving/rereading vectors in a binary format; if you use the FITS file
+format (i.e. set @code{file_type} to FITS) the data will be suitably
+byteswapped if necessary. For example,
+@example
+        data file.dat
+        read @{ x 1 y 2 z 3 @}
+        image (3, dimen(x) )
+        set image[0,*] = x
+        set image[1,*] = y
+        set image[2,*] = z
+        image define filename file.dat
+        define file_type fits
+        write image save.fts
+@end example
+and then, in some other SM session:
+@example
+        define file_type fits
+        image file.dat
+        define filename IMAGE
+        set x = image[0,*]
+        set y = image[1,*]
+        set z = image[2,*]
+@end example
+Note well that defining the image as @code{image(dimen(x), 3)} would be
+@emph{far} less efficient.
+
+See also ARITHMETIC for how to extract a cross-section into a vector and
+DEFINE for defining a variable from the image header. Images may be displayed
+with CONTOUR or DITHER, and examined with IMAGE CURSOR.

@@ -1,0 +1,80 @@
+plot
+macro read
+macro read ngc1851b.sm
+plot
+macro read ngc1851.sm
+plot
+macro read ngc3201b.sm
+plot
+macro read ngc3201b.sm
+plot
+macro read ngc6121b.sm
+plot
+macro read ngc6121b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc3201b.sm
+plot
+macro read ngc6121b.sm
+plot
+macro read ngc6121b.sm
+plot
+macro read ngc6121b.sm
+plot
+macro read ngc6121b.sm
+plot
+macro read ngc6121.sm
+macro read ngc6121b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc1851b.sm
+plot
+macro read ngc3201b.sm
+plot
+macro read ngc1851c.sm
+plot
+macro read ngc1851c.sm
+plot
+macro read ngc3201c.sm
+plot
+macro read ngc1851c.sm
+plot
+macro read ngc3201c.sm
+plot
+macro read ngc1851c.eps
+macro read ngc1851c.sm
+plot
+end
+quit
+macro read ngc3201c.sm
+plot
+macro read ngc6121c.sm
+plot
+macro read ngc6121c.sm
+plot
+macro read all.sm
+plot
+macro read all.sm
+plot
+macro read all.sm
+plot
+macro read all.sm
+plot
+macro read all.sm
+plot

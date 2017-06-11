@@ -1,0 +1,72 @@
+#!/bin/sh
+#
+# Make a diff file for patch, using CVS
+# Syntax: make_patch old_version new_version outfile
+# (prompted for if omitted)
+#
+# We will attempt to construct a Prereq: PREREQ from a string of the form
+#	static char version[] = ... version PREREQ ...
+# in the old AA_Version.h (if it's present in the patch file)
+#
+if [ "$1" = "" ]; then
+	echo -n "Old version? " ; read old
+else
+	old=$1
+fi
+if [ "$2" = "" ]; then
+	echo -n "New version? " ; read new
+else
+	new=$2
+fi
+echo 'Remember to update the patch level (both "cvs tags" and AA_Version.h)'
+if [ "$3" = "" ]; then
+	echo "Diff file to produce?" ; read file
+else
+	file=$3
+fi
+if [ -w $file ]; then
+	echo -n "patch file already exists -- continue? [n/y] "
+	read cont
+	if [ "$cont" != "y" ]; then exit 1; fi
+fi
+#
+# Now use cvs to build a patch file
+#
+cvs patch -fq -r $old -r $new sm > $file
+#
+# Now move the AA_version.h entry to the top, and create a Prereq: entry
+#
+trap 'for rm -f _head _body' 0 1 2 3 9
+#
+#
+if sed -e "/^diff -c .*AA_Version.h/{
+:lab1
+w _head
+s/.*//
+n
+/diff -c/!b lab1
+b
+}" $file > _body ; then
+	prereq=`sed -n "/! static char version_string\[\] = \"/{
+s/.*SM, version \([^ ]*\).*/\1/
+p
+q
+}" _head`
+	if [ "$prereq" = "" ]; then
+		echo "No Prereq found: enter one (or nothing if none is desired)"
+		read prereq
+	else
+		echo Prerequisite = $prereq
+	fi
+	if [ "$prereq" != "" ]; then
+		echo Prereq: $prereq > $file
+	else
+		cp /dev/null $file
+	fi
+#
+	cat _head _body >> $file
+else
+	echo "There is no AA_Version.h file in the patch, and thus no Prereq:"
+	mv _body $file
+	exit 1
+fi

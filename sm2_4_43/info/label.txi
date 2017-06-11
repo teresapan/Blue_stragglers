@@ -1,0 +1,19 @@
+@node Label, Levels, Key, Commands
+
+@iftex
+@syntax Label.
+@end iftex
+@example
+Syntax: LABEL str
+@end example
+@pindex Label
+
+   LABEL writes the string @code{str}, which starts one space after LABEL and
+continues to the last non-space character, at the current location (set by
+RELOCATE, etc). After the label is written the current location is on the
+baseline, just to the right of the last character drawn.
+You can of course use quotes to include trailing white space.
+LABEL str is exactly equivalent to PUTLABEL 9 str (@pxref{Putlabel}).
+
+The string's size and angle are determined by EXPAND and
+ANGLE. For more information on fonts and such like, @xref{Labels}.

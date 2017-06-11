@@ -1,0 +1,16 @@
+@node Lweight, Macro, Ltype, Commands
+
+@iftex
+@syntax Lweight.
+@end iftex
+@example
+Syntax: LWEIGHT number
+@end example
+@pindex Lweight
+@findex line drawing, line weight
+
+Set all lines to have a weight of @code{number}, where the bigger the blacker.
+Generally, an lweight of 0 is taken to be the hardware's preferred width.
+The current value of LWEIGHT is available as an internal variable
+(e.g. @code{DEFINE lweight |})
+@findex internal variables, lweight

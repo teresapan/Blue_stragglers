@@ -1,0 +1,43 @@
+@node While, Window, Whatis, Commands
+
+@iftex
+@syntax While.
+@end iftex
+@example
+Syntax: WHILE @{ expr @} @{ commands @}
+@end example
+@pindex While
+
+
+   Repeat the @code{commands} while the @code{expr} is true.
+You can break out of the loop early with the BREAK command (@pxref{Break}).
+
+There is further discussion in section @xref{Loops and If}.
+
+  For example,
+@example
+define i 0
+while@{$i < 10@} @{
+        echo Hi $i
+        define i ($i+1)
+@}
+@end example
+@noindent
+is equivalent to either
+@example
+do i=0,9 @{
+        echo Hi $i
+@}
+@end example
+@noindent
+and
+@example
+set i=0
+while@{i != 100@} @{
+        if(i == 10) @{ break @}
+        echo Hi $(i)
+        set i=i+1
+@}
+@end example
+@noindent
+except in so much as which variables and vectors are defined at the end.

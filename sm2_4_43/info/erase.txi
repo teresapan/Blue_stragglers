@@ -1,0 +1,23 @@
+@node Erase, Errorbar, Environment Variables, Commands
+
+@iftex
+@syntax Erase.
+@end iftex
+@example
+Syntax: ERASE 
+@end example
+@pindex Erase
+@findex raising windows
+@findex erase, raises window
+
+   ERASE erases the graphics screen. The macro @code{era} erases the
+screen without appearing on the history buffer. If you want to start a
+new output page on a hardcopy device use the PAGE command.
+
+You may be able to erase individual lines with LTYPE ERASE, if you can
+you should look at the macro @code{undo}.
+
+@findex .sm, raise_on_erase
+If the variable @code{raise_on_erase} is set and false, the graphics
+window won't be deiconified and raised when it is erased.  You may set
+this variable in your @file{.sm} file.

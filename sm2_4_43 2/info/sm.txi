@@ -1,0 +1,151 @@
+\input texinfo  @c -*-texinfo-*-
+@tex
+\input defs
+@end tex
+@c %**start of header
+@setfilename sm
+@settitle SM
+@c %**end of header
+
+@c ================================================================
+@c This file has the new style title page commands.
+@c Also, it uses `@@include' files instead of `@@input' files.
+
+@c Run using special version of `texinfo.tex'.
+
+@c Also, run `makeinfo' rather than `texinfo-format-buffer'.
+@c ================================================================
+
+@tex
+\global\let\commandname=\relax
+\gdef\startsyntax{}\gdef\endsyntax{}%
+\gdef\syntax #1.{\bigbreak\line{\hrulefill}\vskip-5pt
+\gdef\commandname{\uppercase{#1}}
+{\chapternofonts%
+\edef\temp{{\realbackslash unnumbsecentry {#1}{\noexpand\folio}}}%
+\setref{#1}%
+\escapechar=`\\%
+\write \contentsfile \temp}}
+%
+\gdef\commandfootlines{
+  \global\evenfootline={\hfil\commandname\kern-1.0cm}
+  \global\let\oddfootline=\evenfootline}
+\gdef\nocommandfootlines{
+  \global\evenfootline={\hfil}
+  \global\oddfootline={\hfil}}
+%
+% Define \tt to set {}\<> to typewriter font too
+%
+\gdef\tt{%
+\chardef\{='173\chardef\}='175\chardef\\='134%
+\chardef\<='074\chardef\>='076\def\n{\char'134n}%
+\fam\ttfam\tentt%
+}
+% \overfullrule=0pt
+\global\hfuzz=1.5pt
+@end tex
+
+@ifinfo
+This file documents SM.
+
+Copyright (C) 1987--1996 Robert Lupton and Patricia Monger
+@end ifinfo
+
+@setchapternewpage odd
+
+@c
+@c Un-comment this if you want A4 output
+@c
+@c @afourpaper
+
+@titlepage
+@title SM
+@subtitle Edition 2.4.16 (or later if we didn't update this page)
+
+@vskip 2in
+You should replace this cover sheet with one made by running SM and
+saying @code{load cover cover}.
+
+@author by Robert Lupton and Patricia Monger
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1987--2002 Robert Lupton and Patricia Monger
+@vskip 3pt
+rhl@@astro.princeton.edu and monger@@mcmaster.ca
+@vskip 3in
+
+If you have a legal version of SM we hereby grant you the right to make
+copies of this manual, or parts of this manual, for distribution to
+anyone who has a legal right to use SM, provided that you preserve our
+copyright notice on all such copies.
+
+@end titlepage
+@page
+
+@node Top, Introduction, (dir), (dir)
+
+@ifinfo
+This the SM Manual, Version 2.4.16
+@end ifinfo
+
+@menu
+* Introduction::	Introduction
+* Description::		Description and a Simple Example
+* Interpreter::		SM's Command Interpreter
+* Variables::		String Variables
+* History Editor::	Recovering and Repeating Commands
+* Key Bindings::	Changing Key-Bindings
+* Operating System::	Talking to the Operating System
+* Macros::		Macros
+* Loops and If::	DO and FOREACH loops, WHILE loops, and IF statements
+* Getting Help::	Getting Help with Commands, Macros, and Variables
+* Save and Restore::	Saving and Restoring a Session
+* Vectors::		Vectors and Arithmetic
+* Labels::		Drawing Labels and SM's @TeX{} Emulation
+* Hardcopy::		Getting Hardcopies of Plots
+* Overloading::		Overloading Keywords
+* Useful Macros::	Examples of Useful Macros
+* Quoting::		What Quotes What When
+* SWIG::		How to use SWIG to generate e.g. python bindings
+* Keywords::		Reserved Keywords
+
+* Glossary::		Glossary of Terms used in this Manual
+* Commands::		Command Reference
+
+* Appendices::		Various Appendices
+* Release Notes::	SM's Release Notes
+
+* Index::		General Index
+* Command Index::	Index of SM's Commands
+@end menu
+
+@include intro0.txi
+@include intro1.txi
+@include intro2.txi
+@include intro3.txi
+@include intro4.txi
+@include glossary.txi
+@tex
+\commandfootlines
+@end tex
+@include commands.txi
+@tex
+\vfil\eject
+\nocommandfootlines
+@end tex
+@include appendix.txi
+@ifinfo
+@node Release Notes, , Appendices, Top
+@unnumbered Release Notes
+
+For the SM release notes, which discuss enhancements and the
+more visible bug fixes, @xref{Top,Release Notes,,notes,}.
+@end ifinfo
+
+@include index.txi
+
+@c Print the tables of contents
+@summarycontents
+@contents
+
+@bye

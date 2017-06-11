@@ -1,0 +1,148 @@
+@node Table, Termtype, Surface, Commands
+
+@iftex
+@syntax Table.
+@end iftex
+@example
+Syntax: TABLE [subtable] ['format'] file
+        TABLE subtable \n
+        READ TABLE @{ WORD [WORD @dots{}] @}
+        READ TABLE 'format' @{ WORD [WORD @dots{}] @}
+        READ TABLE 'byname' @{ WORD [WORD @dots{}] @}
+        READ TABLE 'bycolumn' @{ WORD id [WORD id @dots{}] @}
+        LIST TABLE
+@end example
+@pindex Table
+
+SM is able to read a wide range of table formats, using tricks similar
+to those used for the IMAGE command. The variable @code{table_type} is used to
+specify which you want (and may be set in your @file{.sm} file). Common values
+are @code{bintable} and @code{ctable}. Values flagged as bad in the table
+may be (in the case of @code{bintable}, are) set to SM's invalid value,
+and this are not even equal to themselves.
+@findex table, NaNs
+
+TABLE @code{[...]} file is the equivalent of the DATA command, and sets
+file @code{file} to be the source of data read with the READ TABLE command;
+if the file can't be opened for read, you will be warned. If the
+subtable argument is provided, it specifies which table in a TABLE
+file is to be read; this is only currently supported for FITS tables
+(@code{$table_type} is @code{bintable} or a type derived therefrom; for such
+tables
+you probably want to use a subtable of 1). The format, if provided,
+specifies the types of the columns in the table; some tables may
+provide this either in the table header (e.g. FITS binary tables) or
+in the filecap file, as the @code{FM} quantity. Allowable format strings are
+specified at the end of this file. This format applies to READ TABLE
+commands for this table, unless specifically overridden.
+
+   The range of lines specified by LINES is reset; the LINES command may
+be used to select portions of TABLEs to read.
+
+If you don't specify the filename, and if SM knows how to skip tables,
+it will skip over  HDUs that it has already read, provided that the SM variable
+@code{save_read_ptr} is set (which it is by default; @pxref{Read}).
+@findex save_read_ptr
+@findex caching the read pointer
+
+   The READ TABLE command is used to read data from a table. If you
+specify a format string and a list of names, a vector will be read from
+each column specified in the format and assigned to the corresponding
+vector (for example, @code{READ TABLE 'x16if2' @{ i x y @}} will skip 16
+bytes at the start of the row, then read an integer into @code{i}, and
+two columns of floats into @code{x} and @code{y}).  Format strings are
+described at the end of this section.
+
+   If you specify the format as @code{'byname'}, the names of the
+vectors will be taken to be the names of columns in the file, and the
+corresponding columns will be read. If the column name, say @code{RDL},
+specifies an array, the vector will be filled from column @code{RDL[0]};
+as an alternative to this you can specify the name as (e.g.)
+@code{RDL[2]} in which case vector @code{RDL2} will be created from
+column @code{RDL[2]}.
+You can also say @code{RDL[0-2]} to read vectors @code{RDL0}, @code{RDL1},
+and @code{RDL2.}
+Byname access is only currently supported for
+FITS binary tables (as a special case, you can specify @code{byname} as
+the format in a filecap file).
+
+The name that you give will be used as the name of the vector, but the
+matching with the binary table is done without regard to case, so
+@example
+        read table 'byname' @{ AlGoNqUiN @}
+@end example
+@noindent
+and
+@example
+        read table 'byname' @{ Algonquin @}
+@end example
+@noindent
+will read the same column of the table into two different vectors,
+@code{AlGoNqUiN} and @code{Algonquin}.
+
+   For tables where @code{byname} formats are acceptable,
+you can list the available column names with LIST TABLE.
+
+   If you specify the format as 'bycolumn', the list is expected to be a
+list of pairs of values (similar to the regular @code{READ @{ x 1 y 2 ... @}}
+command).
+The first element of each pair is the name of a vector, the second may be
+either a number or a column name (if supported). The number gives the
+desired column with respect to the current format string. For example,
+@example
+	TABLE 'd*' file
+	READ TABLE 'bycolumn' @{ x 1 y 2 @}
+@end example
+@noindent
+will read @code{x} and @code{y} from the first two columns of the file, whereas
+@example
+	TABLE 'x8d*' file
+	READ TABLE 'bycolumn' @{ x 1 y 2 @}
+@end example
+@noindent
+will read @code{x} and @code{y} from the second and third columns of the file,
+assuming that a double (the @code{d}) is eight bytes wide.
+
+Instead of a number, you may be able to specify a column name, for
+example
+@example
+	READ TABLE 'bycolumn' @{ x_u rowc[0] x_g rowc[2] @}
+@end example
+@noindent
+but this depends on your chosen @code{$table_type} having support for
+byname access.  In general you will not be able to mix name- and column-
+orientated access (for example, we do not support column orientated
+access to FITS binary tables unless you provide a format).
+
+TABLE's formats are strings (i.e. they must be enclosed with '').
+consisting of a set of types followed by optional repeat counts, for
+example @code{'x12f5d*'} would specify a table, each of whose rows had 12
+unwanted bytes, 5 floats, and the rest integers.  Format letters are:
+@table @code
+@item a
+A 1-byte ascii string
+@item c
+A 1-byte char
+@item d
+An 8-byte double
+@item f
+A 4-byte float
+@item i
+A 4-byte int
+@item l
+A long int (may be 8 bytes on some machines)
+@item s
+A 2-byte int
+@item x
+1 byte to skip (a space may be used instead of an x)
+@end table
+and each may be followed by a repeat count (default: 1), or a *, meaning
+to repeat as many times as fits into a row. In all cases except
+@code{a}, the repeat count refers to how many columns there are (so
+@code{d4} means 4 doubles); for a it refers to the length of the string
+(so a4 is one 4-byte string). Note that the maximum length of an @code{a}
+table is the length of an element of a string-valued vector (usually
+40, but configurable by whoever built your copy of SM).
+@findex table, formats
+
+    Header keywords may be available with the DEFINE name IMAGE command.

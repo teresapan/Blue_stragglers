@@ -1,0 +1,101 @@
+@node Ptype, Putlabel, Prompt, Commands
+
+@iftex
+@syntax Ptype.
+@end iftex
+@example
+Syntax: PTYPE n s
+        PTYPE WORD
+        PTYPE ( expr )
+        PTYPE @{ list @}
+@end example
+@pindex Point style
+
+   PTYPE @code{n s} causes points to be drawn as @code{n} sided polygons of a 
+style @code{s}, where @code{s} refers to:
+@table @code
+@item 0
+open 
+@item 1
+skeletal (center connected to vertices)
+@item 2
+starred
+@item 3
+solid
+@end table
+For example, @code{PTYPE 1 1} (or @code{PTYPE 0 0}) makes points appear as
+dots, @code{PTYPE 4 1} (the default) makes
+(diagonal) crosses, and @code{PTYPE 6 3} makes filled hexagons.
+Points made up of lines (types @code{0}, @code{1}, and @code{2})
+are drawn using the current LTYPE.
+
+When possible @code{PTYPE 0 0} will draw the smallest possible dots that
+the device is capable of; these may or may not be different from
+@code{PTYPE 1 1}.
+
+The current value of PTYPE is available as an internal variable (e.g.
+@code{DEFINE ptype |})
+@findex internal variables, ptype
+
+PTYPE @code{WORD } or PTYPE @code{( expr )} use vector @code{WORD} or the
+expression @code{expr} as its source of @code{n} and 
+@code{s}, ( so you may define different point types for each point) except
+that the
+numbers are contracted together. If the entry has a fractional part, it is
+treated as an expansion factor, relative to the current expansion
+(no fractional part means default expansion); so if
+@code{n} is a vector giving the desired number of sides for a set of points,
+@code{s} is a vector giving the desired types, and @code{e} is a vector
+giving the desired relative sizes (@code{0 <= e < 1}), you'd want to say
+@code{PTYPE (10*n+s+e)}.
+For example, an an entry of 103.5 in @code{WORD} is the same as PTYPE 10 3,
+EXPAND 0.5, but if you now say EXPAND 2 the net expansion will be unity.
+It's much easier to use a vector of
+expansions directly to the EXPAND command, but fractional ptypes are
+preserved for backwards compatibility.
+@emph{N.b. due to a bug in @r{X10R4} for the @r{Sun},
+@r{PTYPE} @code{n 3} does not work for @code{dev xwindows} on a sun}.
+If more points are specified than
+the dimension of expr, the first element will be used for the excess.
+
+If @code{WORD} is a string-valued vector, its elements are used to
+label the points of the graph. They are drawn at the current expand
+and angle (vector-valued EXPANDs and ANGLEs are ignored), and in the
+current default font. For @TeX{}-string users this can be specified
+with the variable @code{default_font}, which can either simply be defined,
+or set in your @file{.sm} file.
+@findex string vectors, ptypes
+@findex ascii labels
+
+PTYPE @code{@{ list @}} defines the symbol to use with the POINTS
+command to be some creation of the user.
+The list consists of a set of @code{c x y} where @code{c} is a letter,
+and @code{x}
+and @code{y} are integers. If @code{c} is `m' or `r' (move or relocate)
+the plot pointer is moved to the point (x,y), if it is `d' (draw) or absent
+a line is drawn from the current position to the point (x,y). The coordinates
+are measured relative to the current point being plotted, and are
+measured in screen coordinates (i.e. 0-32767). Both EXPAND and ANGLE
+are applied to the (x,y) values as usual.
+
+As an example the command
+@example
+PTYPE @{ m 0 500 500 0 0 -500 -500 0 0 500 @} 
+@end example
+@noindent
+will define the marker to be a diamond, something like:
+@example
+                  /\
+                 /  \
+                 \  /
+                  \/
+@end example
+@noindent
+(but with unbroken lines). As a more useful example, there is
+a macro @code{upper} which defines a variable $upper to draw an upper limit
+sign, used as
+@example
+PTYPE $upper
+@end example
+@noindent
+(if ANGLE were 180, they'd be lower limits).

@@ -1,0 +1,151 @@
+###################################################################
+#								  #
+#		    SSSS       M       M			  #
+#		   S    S      MM     MM			  #
+#		   S	       M M   M M			  #
+#		    SSSS       M  M M  M			  #
+#		        S      M   M   M			  #
+#		   S    S      M       M			  #
+#		    SSSS       M       M			  #
+#								  #
+#								  #
+###################################################################
+#
+# This makefile makes various standalone programmes, and then
+# SM itself, in subdirectory src. See the makefile in src
+# and (especially) the file options.h to modify the ways that SM is compiled
+#
+# If you change (e.g.) the value of CC in this Makefile, you must either
+# always run always make from this directory, or edit src/Makefile too.
+#
+.c.obj :
+	$(CC) -c $(CFLAGS) {$*.c }
+#
+# Which compiler to use.
+#
+#  If you are using gcc -Wall the compilation of bison will produce many
+# warnings. You may ignore these, or move the -Wall flag into CFLAGS.
+#  When compiling control.y you will get two from bison.simple.
+#  Compiling SM itself should produce a single complaint from each main
+# programme, as gcc doesn't understand exit().
+#
+# MSDOS: use borland's C++ 3.0 compiler
+CC = bcc
+#
+# cc flags
+#
+!if $d(OWNER)
+_OWNER="-DOWNER"
+!endif
+!if $d(WIN)
+_WIN="-DWIN"
+!endif
+DEBUG = -v -N
+CFLAGS = -A -ml -Isrc -Ff=2048 -wpro- $(DEBUG)
+MAKE = make -fmakefile.dos
+#
+# Path to search for sm.def files
+#
+DEFAULT_PATH =". ~ $(DESTETC)/"
+#
+# linker flags
+#
+LDFLAGS = -ml $(DEBUG)
+#
+# Make all targets (should be first in Makefile)
+#
+all : notice sm.exe fonts rasteris.exe
+notice :
+	@- echo.
+	@- echo SM is copyright 1987, 1989, 1990, 1992 Robert Lupton and Patricia Monger.
+	@- echo You may not distribute either source or executables without
+	@- echo specific permission from the authors. See the file copyright.h
+	@- echo for more details.
+	@- echo.
+#
+# Make SM
+#
+sm.exe :
+	cd src
+	$(MAKE) $(_OWNER) $(_WIN)
+	cd ..
+#
+# Now various stand-alone programmes:
+#
+# Convert the fonts to binary format
+#
+read_fonts.exe : read_fonts.obj
+	$(CC) $(CFLAGS) -eread_fonts read_fonts.obj
+#
+fonts : fonts.bin
+fonts.bin : read_fonts.exe hershey_oc.dat font_index tex.defs
+	 .\read_fonts hershey_oc.dat font_index tex.defs fonts.bin
+#
+# Bootstrap compile_g without a valid cacheg.dat file
+# (not made by default)
+#
+boot_g.exe : compile_g.obj src\tty.h
+	$(CC) $(LDFLAGS) $(CFLAGS) -DBOOTSTRAP -eboot_g -Isrc compile_g.c
+#
+# The programme to compile graphcap entries
+#
+compile_g.obj : src\dummies.h src\tty.h
+compile_g.exe : compile_g.obj src\libdevices.lib src\libutils.lib
+	$(CC) $(LDFLAGS) -ecompile_g compile_g.obj \
+		src\libdevices.lib src\libutils.lib graphics.lib
+#
+# Extract the grammar from a yacc/bison file
+#
+get_grammar : get_grammar.obj
+	$(CC) -eget_grammar get_grammar.obj
+#
+# Rasterise vector files produced by the "raster" device
+#
+rasteris.obj : src\dummies.h
+rasteris.exe : rasterise.obj src\libdevic.lib src\libutils.lib
+	$(CC) $(LDFLAGS) -erasteris rasterise.obj \
+				src\libdevic.lib src\libutils.lib graphics.lib
+#
+# Make archives
+#
+sm.arj :
+	arj /jm /r /xsrc\control.c /xsrc\control.h /xsrc\yylex.c a sm *.c *.h *.y *. *.dat sm.sm sm.ico sm.def tex.defs
+smdosexe.exe :
+	tdstrip sm
+	del smdosexe.exe
+	arj /ya /je /jm /xuser\sm.hf a smdosexe.exe help\*.* macro\*.* sm.exe rasteris.exe dos\*.*
+	arj /ya /je /jm /xuser\sm.hf a smdosexe.exe sm_rc user\*.* filecap graphcap termcap fonts.bin
+smwinexe.exe :
+	tdstrip sm
+	del smwinexe.exe
+	arj /ya /je /jm /xuser\sm.hf a smwinexe.exe help\*.* macro\*.* sm.exe rasteris.exe sm.ico 
+	arj /ya /je /jm /xuser\sm.hf a smwinexe.exe sm_rc user\*.* filecap graphcap termcap fonts.bin
+#
+# clean out all object code and junk files
+#
+empty : clean
+	- del fonts.bin
+	- del read_fonts.exe
+	- del compile_g.exe
+	- del boot_g.exe
+	- del get_grammar.exe
+	- del smexe.exe
+	- del smwinexe.exe
+	- cd src
+	- $(MAKE) empty
+	- cd ..\info
+	- $(MAKE) empty
+	- cd ..
+clean :
+	- del *.obj
+	- del patch\*.obj
+	- cd src
+	- $(MAKE) clean
+	- cd ..\callable
+	- $(MAKE) clean
+	- cd ..
+#
+# Here are all the dependencies:
+#
+#START_DEPEND
+read_fonts.obj :	src\fonts.h src\options.h

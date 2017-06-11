@@ -1,0 +1,49 @@
+@node Histogram, History, Help, Commands
+
+@iftex
+@syntax Histogram.
+@end iftex
+@example
+Syntax: HISTOGRAM WORD1 WORD2 [ IF (expr) ]
+@end example
+@pindex Histogram
+
+HISTOGRAM connects the points in vectors @code{WORD1} and @code{WORD2} as
+a histogram.
+The @code{i}th bin of the histogram is taken to run from
+@code{(x[i-1] + x[i])/2} to @code{(x[i] + x[i+1])/2};
+for the case of equally spaced x-values, this reduces
+to saying that the x values are the bin centres.
+
+If the IF clause is present, only use those points for which @code{expr} (see
+the section on vector arithmetic) is true (i.e. non-zero). Only contiguous
+parts of the histogram are connected; if you don't want this behaviour,
+say something like
+@example
+set l = (z==1) ? 1 : 0  set x=xx if(l) set yy=y if(l) histogram xx yy
+@end example
+@noindent
+
+In fact, either or both of the @code{WORD}s may be replaced by
+`parenthesised expressions', i.e. expressions in parentheses. For example,
+@example
+HISTOGRAM x (2 + y)
+@end example
+@noindent
+to plot x against @i{2 + @r{y}}.
+There is a macro @code{barhist} for drawing bar charts.
+See Arithmetic for how to convert vectors of data into histograms, and
+@code{SHADE} for how to shade them.
+
+
+The form with @code{ANGLE} is used for drawing a histogram of y against x,
+when the averaging is done in the y- not the x- direction. Compare
+@example
+set y = @{0 3 1 3 1 0@} set x =-0.25,-2.75,-0.5 lim y x
+ERASE box histogram y x
+@end example
+@noindent
+with
+@example
+ERASE box histogram angle y x
+@end example

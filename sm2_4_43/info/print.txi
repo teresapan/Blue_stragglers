@@ -1,0 +1,113 @@
+@node Print, Prompt, Points, Commands
+
+@iftex
+@syntax Print.
+@end iftex
+@example
+Syntax: PRINT [+] [ file ] [ 'format' ] @{ list @}
+        PRINT [+] [ file ] [ 'format' ] < list >
+@end example
+@pindex Print
+@findex vectors, printing
+@findex writing vectors to a file
+@findex writing vectors to the screen
+
+Print the vectors specified by @code{list} to @code{file}, if @code{file} is
+absent, print to the terminal (the output is paged, sort of).
+The name of each vector is printed at the head of the
+appropriate column. If the output is going to a file, each line of the
+header starts with a `#', so the file can be read without using the
+LINES command.
+
+The header is not printed if the variable
+@code{print_noheader} is defined and non-zero. For example, I have a macro
+@example
+p       111     ## print a vector or expression. E.g. "p x" or "p sin(x)"
+                local define print_noheader 1
+                local set foo=$1
+                if(whatis(foo) & 2**5) @{
+                   print '%g ' @{ foo @}
+                @} else @{
+                   print '%s ' @{ foo @}
+                @}
+                #
+@end example
+@noindent
+to print vectors on a single line.
+In addition, no header is printed if you are not actually printing any vectors,
+in this case no newline is appended to the string. This provides a way of
+controlling string output, and suppressing newlines, e.g.
+@code{PRINT 'S' @{@} PRINT 'M\n' @{@}}. You probably will usually want
+to use WRITE STANDARD instead (@pxref{Write}).
+@findex strings, printing
+
+With the optional `+' the vectors are appended to the file, otherwise
+it is overwritten unless @code{$noclobber} is defined, in which case
+SM will refuse to touch the file.  You can set @code{noclobber} by
+specifying it in your @file{.sm} file.
+
+   The optional format string is of the type accepted by the C function
+`printf', and you should see a book on C (or maybe the online system
+manual or help command) for more details. Basically, the format string
+is copied to the file with format specifiers beginning with @code{%}
+signs replaced by the numbers that you want printed. The format
+specifiers to use are the floating point ones, @code{%e}
+(exponential), @code{%f} (floating point), and @code{%g} (computer's
+choice), @code{d}, @code{o}, @code{x} for printing numbers as integers
+(the latter two are octal and hexadecimal), or @code{%s} for strings. If
+you have long ints, you will need to use e.g. @code{0x%lx} (note the @code{l}; ell)
+if you're specifying your own formats.
+Fields are right justified by default, you 
+can insert a @code{-} just after the @code{%} to left justify them. A
+@code{%} may be written as @code{%%}, and a tab as @code{\t}. Lines
+are @emph{not} terminated by a newline by default, you have to write
+them explicitly as @code{\n}.
+
+   For example,
+@example
+SET x=1,10 SET y=x**2
+PRINT file '%10f (%10.2e)\n' @{ x y @}
+@end example
+@noindent
+will produce
+@example
+#........x............y
+#
+..1.000000.(..1.00e+00)
+..2.000000.(..4.00e+00)
+..3.000000.(..9.00e+00)
+(etc.)
+@end example
+@noindent
+where I have replaced each space by a @code{.} for clarity. If you say
+@example
+PRINT '%g ' @{ x @}
+@end example
+@noindent
+you will get
+@example
+..........x
+
+1.2.3.4.5.6.7.8.9.10.
+@end example
+
+If you want very long output lines you'll run into one of SM's internal
+limits; the maximum length of a string (currently 160 characters).
+You might try to work around this
+by putting part of the formatted output into string vectors and then using
+a %s format to write it out; such an approach can be
+made to work, for example instead of
+@example
+print file 'Date: %2d %2d %4d\n' @{ dd mm yy @}
+@end example
+@noindent
+you can write
+@example
+set date = sprintf('Date: %2d',dd) + \
+           sprintf(' %2d',mm) + \
+           sprintf(' %4d',yy)
+print file '%s\n' @{ date @}
+@end example
+@noindent
+If you think that this is a hack I rather agree with you, but it does
+permit formatted output of up to 400 characters.

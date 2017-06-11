@@ -1,0 +1,23 @@
+#!/bin/csh -f
+#
+# This is a script to extract abort information from a core file,
+# using adb. If possible, it is better to use dbx and tell us which line
+# the failure occured on, but this is much better than nothing
+#
+# format: dump sm
+#
+set addr = `echo '$c' | adb $1 | awk 'NR==4 { print $3 }'`
+adb $1 << END_SCRIPT
+4095\$s
+="Coredump of SM:"
+=2n"Traceback"
+\$C
+=2n"Externals"
+\$e
+=2n"Registers"
+\$r
+=2n"Context of error:"
+="$addr"
+$addr,10?ia
+END_SCRIPT
+

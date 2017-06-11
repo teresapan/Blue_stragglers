@@ -1,0 +1,60 @@
+@node User, Verbose, Ticksize, Commands
+
+@iftex
+@syntax User.
+@end iftex
+@example
+Syntax: USER ABORT [ string ]
+        USER integer string
+@end example
+@pindex User
+
+The first form, USER ABORT, is used to generate a syntax error, and
+return to the prompt (with a traceback if you've requested one with the
+@code{traceback} variable). The
+command reported as the offender is @code{string} if provided, otherwise
+@code{USER ABORT}.
+
+If you want to catch these errors you can define a macro
+@code{abort_handler} which will be called with the message as all of its
+arguments instead of causing SM to return to the command prompt. For
+example, I use
+@example
+abort_handler 111	# catch USER ABORT
+		        echo Caught user abort: $1
+        		#
+@end example
+Note that the argument extends to the end of the line --- this is important!
+If @code{abort_handler} took a single argument, what would the command
+@code{USER ABORT good bye world} do? First the handler would be called
+as @code{abort_handler good bye world}. It'd pull off the first argument
+@code{good} and print it and SM would continue to process @code{bye} as
+a command. It's neither a command nor a macro, so the default
+@code{macro_error_handler} executes
+@code{USER ABORT bye is not a macro; aborting. Rest of line: world}. The
+abort handler pulls of the @code{bye}, and tries to execute @code{is} ---
+and we have an infinite recursion that is broken only by a @kbd{^C} or by
+reaching the maximum depth to which SM will nest abort handlers.
+
+@findex aborting a command
+@findex syntax error, deliberate
+@findex abort, catching errors
+@findex user abort, catching
+
+The other, with an integer, calls a function called `userfn',
+passing the @code{integer} and the
+string as arguments, both are passed by address as if SM were
+written in fortran (string is passed as a NUL terminated C string, though).
+
+This function is provided to allow users without C compilers to make
+additions to the main grammar, but whether it is really useful is a
+different matter. Currently, if @code{integer} is non-zero then both
+@code{integer} and @code{string} are printed unless @code{integer} is
+@code{1}, in which case the command
+@code{USER 1 r 1.23} is equivalent to @code{SET r=1.23} (only constants
+are allowed).
+
+If @code{string} is @code{dump} you'll get a macro stack trace, and if
+it's @code{segv} you'll get a segmentation violation (on purpose). If
+you really want some new functionality, send us mail.
+

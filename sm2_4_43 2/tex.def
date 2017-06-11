@@ -1,0 +1,176 @@
+#
+# `TeX' definitions for SM
+#
+# Format: name (white space) font (one character) string
+#
+# The font should be one of cu, rm, gr, oe, sc, ti, or pr
+#
+# Special cases handled by load_font:
+#	\, -> SCRIPT " "
+# 	\! -> GREEK " "
+#
+'	0 oe ^|
+"	1 cu #1^{\kern-450\-1\prime\prime}_{}
+~       1 cu \move-30\height{#1}{~}#1
+aleph	0 gr H
+alpha	0 gr a
+approx  0 rm \move0 100{\sim}\raise-50\sim\raise50
+ast	0 oe `
+asteroid 0 oe ,
+bar	1 cu \move 0 \advance\height{#1} by 100{\hrule\width{#1}}#1
+beta	0 gr b
+bigcirc	0 gr O
+border  2 cu \kern-#1{}\kern\advance#1by#1{}#2\kern#1{}\
+		\raise\advance\height{#2}by#1{}\
+		\raise-\advance\height{#2}by#1{}\
+		\raise-\advance\depth{#2}by#1{}
+cdot    0 rm \raise180{.}\raise-180
+centre  1 cu \center{#1}
+center  1 cu \kern-\divide\width{#1}by2000{#1}
+cents	0 gr C
+chi	0 gr c
+circ	0 sc `
+clover	0 gr @
+clubsuit 0 sc ~
+comet	0 oe +
+dag	0 gr [
+ddag	0 gr ]
+del	0 gr J
+delta	0 gr d
+diamondsuit 0 sc \}
+div	0 gr /
+dot	1 cu \move0\advance\height{#1}by 100{\kern85.}#1
+downarrow 0 gr N
+epsilon	0 gr e
+equinox	0 oe \^
+equiv	0 gr =
+eta	0 gr h
+firtree	0 gr v
+frac	2 cu \,\move0 \advance\depth{#1}by100{#1}\
+		\raise +\advance\depth{#1}by\advance\height{#1}by100{}\
+		\raise -\advance\depth{#1}by\advance\height{#1}by100{}\
+		\move0 -\advance\height{#2}by 100{#2}\
+		\raise -\advance\height{#2}by \advance\depth{#2}by100{}\
+		\raise +\advance\height{#2}by \advance\depth{#2}by100{}\
+		\-2\kern-\width{\,}\hrule\width{\,{\2#1}\,}\,
+gamma	0 gr g
+ge	0 gr >
+geq	0 gr >
+hat	1 cu \move\divide\width{#1}2000\advance\height{#1}-100\
+		{\kern-\divide\width{\^}by2000{\^}}#1
+hbar	0 gr Z
+heartsuit 0 sc |
+infty	0 gr B
+int	0 gr :
+iota	0 gr i
+kappa	0 gr k
+langle	0 gr \{
+leftarrow 0 gr ~
+le	0 gr <
+leq	0 gr <
+lambda	0 gr l
+mp	0 gr -
+mu	0 gr m
+nabla	0 gr J
+ne	0 gr ?
+nu	0 gr n
+odot	0 gr (
+oint	0 gr ;
+omega	0 gr w
+omicron	0 gr o
+oneline 1 cu \smash{#1\raise-600}
+oplus	0 gr )
+otimes	0 gr K
+OVER	2 cu \,\move0 \advance\depth{#1}by100{#1}\
+		\move0 -\advance\height{#2}by 100{#2}\
+		\-2\kern-\width{\,}\hrule\width{\,{\2#1}\,}\,
+over	2 cu \frac{#1}{#2}
+palmtree 0 gr R
+parallel 0 gr I
+partial	0 gr j
+perp	0 gr T
+phantom 1 cu \kern\width{#1}	
+phi	0 gr f
+pi	0 gr p
+pm	0 gr +
+prime	0 oe |
+propto	0 gr ,
+psi	0 gr y
+rangle	0 gr \}
+rightarrow 0 gr \_
+rho	0 gr r
+shield	0 gr .
+sigma	0 gr s
+sim	0 rm ~
+simeq   0 rm \move -30 100{\sim}\raise130\kern30\hrule420\raise -130
+smash   1 cu #1\kern-\width{#1}
+snow	0 oe \_
+spadesuit 0 sc \}
+sqrt	0 gr `
+ssqrt	1 cu \raise-100{\gr`}\raise100\move0+620{\hrule\width{#1}}#1
+strut   0 cu \raise\height(\raise-\depth(
+sum	0 gr $
+tau	0 gr t
+theta	0 gr q
+tilde	1 cu \move\divide\width{#1}2000\advance\height{#1}-50\
+		{\kern-\divide\width{\-1\sim}by2000{\-1\sim}}#1
+times	0 gr *
+uline	1 cu \move 0 -\advance\depth{#1} by 100{\hrule\width{#1}}#1
+uparrow	0 gr M
+upsilon	0 gr u
+varepsilon 0 gr !
+varphi	0 gr ##
+vartheta 0 gr "
+vec	1 cu \move-30\advance\height{#1}by100{\rightarrow}#1
+xi	0 gr x
+zeta	0 gr z
+AA	0 gr A
+Alpha	0 rm A
+Aquarius 0 oe [
+Aries	0 oe -
+Beta	0 rm B
+Cancer	0 oe :
+Capricorn 0 oe @
+Chi	0 rm X
+Delta	0 gr D
+Earth	0 oe ##
+Epsilon	0 rm E
+Eta	0 rm H
+Gamma	0 gr G
+Gemini	0 oe /
+Iota	0 rm I
+Jupiter	0 oe %
+Kappa	0 rm K
+Lambda	0 gr L
+Leo	0 oe ;
+Libra	0 oe =
+Mars	0 oe $
+Mercury	0 oe !
+Moon	0 oe *
+Mu	0 rm M
+Neptune	0 oe (
+Nu	0 rm N
+Omega	0 gr W
+Omicron	0 rm O
+Phi	0 gr F
+Pisces	0 oe ]
+Pluto	0 oe )
+Pi	0 gr P
+Psi	0 gr Y
+Rho	0 rm R
+S	0 gr &
+Sagittarius 0 oe ?
+Saturn	0 oe &
+Scorpio	0 oe >
+Sigma	0 gr S
+Sqrt	0 gr \^
+Tau	0 rm T
+Taurus	0 oe \{
+TeX	0 rm T\raise-200\kern-20E\raise200X
+Theta	0 gr Q
+Upsilon	0 gr U
+Uranus	0 oe '
+Venus	0 oe "
+Virgo	0 oe <
+Xi	0 gr X
+Zeta	0 rm Z

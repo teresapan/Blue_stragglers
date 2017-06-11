@@ -1,0 +1,22 @@
+@node Prompt, Ptype, Print, Commands
+
+@iftex
+@syntax Prompt.
+@end iftex
+@example
+Syntax: PROMPT new_prompt
+@end example
+@pindex Prompt
+
+The current prompt is replaced by @code{new_prompt}; the default is
+@code{:}. Any occurrences of
+the character `*' are taken as instructions to ring the terminal bell.
+When you start SM your prompt is set to the value of the entry
+@code{prompt} in your @file{.sm} file (if you have one).
+@findex .sm, prompt
+
+If you enter a partial command (e.g. @code{macro foo @{} or @code{echo ABC\})
+SM switches to a different prompt. By default this is @code{>>}, but if you
+define the variable @code{prompt2} that will be used instead. You can
+set @code{prompt2} in your @file{.sm} file.
+@findex .sm, prompt2

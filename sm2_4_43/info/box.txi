@@ -1,0 +1,34 @@
+@node Box, Break, Axis, Commands
+
+@iftex
+@syntax Box.
+@end iftex
+@example
+Syntax: BOX [ INTEGER1 INTEGER2 [ INTEGER3 INTEGER4 ] ]
+@end example
+@pindex Box
+@findex axes, drawing
+
+   BOX puts axes around the plot region, labelling the lower and left according
+to the values set by LIMITS and TICKSIZE.
+If arguments @code{INTEGER1} and @code{INTEGER2} are included (default 1 and 2)
+they are used as @code{ILABEL}
+arguments for the lower and left axes (see AXIS). An @code{ILABEL} of 0 means
+to omit axis labels, 1 produces labels parallel to the axis, 2 perpendicular, 
+3 omits both labels and tickmarks, and 4 omits the axis entirely.
+@code{INTEGER3} and
+@code{INTEGER4} are
+used for the top and right axes.
+
+If you want to change the font used for axis labels, define the
+variable @code{default_font}, either interactively (@code{DEFINE
+default_font oe}), or by putting a line in your @file{.sm} file:
+@code{default_font oe}. This affects regular as well as axis labels,
+and only works if you use @code{TeX_strings}, which we recommend
+anyway.
+@findex axes, font used
+@findex .sm, default_font
+
+See @ref{Notation} if you want to control the use of
+floating point or exponential notation, and some details on how to draw
+exponents.  If you want more control over your axis labels, see @ref{Axis}.

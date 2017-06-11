@@ -1,0 +1,662 @@
+@node Macros, Loops and If, Operating System, Top
+@chapter Macros
+
+@findex macros, introduction
+In SM, it is possible to define sets of plot commands as 
+``subprogrammes'', which can be used just like a plot command, to generate
+a standard plot.  These plot @code{macros} allow variables (e.g.
+name of the data file, plot label or limits, etc) to be supplied at 
+execution time.
+
+You can also bind commands to keys to save typing; for example I
+usually bind `cursor' to the PF1 key of my terminal. Such keyboard
+macros are discussed under @code{KEY} and at the bottom of this section.
+
+The macro facility consists of commands to define macros,
+delete them, write them to disk files, read them from disk files,
+delete all those macros defined in a specified disk file and
+@findex macros, help
+@findex macros, listing
+@findex listing, macros
+@findex help, macros
+list all currently defined macros. In addition, the help command
+applied to a macro prints out its definition.
+@findex macros, arguments
+It is possible to pass up
+to 9 arguments to a macro, referred to as $1, @dots{} , $9,
+and in addition $0 gives the name of the macro.
+While macro arguments are
+being read they are treated as if they are in sets of @{@}, except
+that variables @emph{are} expanded. If you want to include a space in
+an argument, enclose it in quotes. If the number of declared arguments is
+10 or more, the macro is treated as having a variable number of arguments.
+If it is 100 or more the last argument extends to the end of the line.
+For further discussion see the discussion of how macros are used.
+
+@findex macros, defining
+A macro is defined by the statement
+@example
+MACRO name nargs @{ body-of-macro @}
+@end example
+@noindent
+or
+@example
+MACRO name nargs < body-of-macro >
+@end example
+@noindent
+where @code{name} may be up to 80 characters, and must not be a
+keyword@footnote{unless you have been playing with @code{OVERLOAD}},
+and @code{body-of-macro} is the statements within the macro, and may
+be up to 2000 characters long. Macros defined using an editor on a file
+may be up to 10000 characters. If @code{nargs}, the number of
+arguments, is 0 it may 
+be omitted. Macros may also be created using the @code{MACRO EDIT} command,
+which is discussed below, and which is probably easier.  To define the macro
+in a disk file, the file format must be: the name of the macro starts in the
+@emph{first} column, followed by a tab or spaces, followed by the number of
+arguments, if greater than 0, followed by commands, followed by
+comments if any.  The next line and 
+any necessary subsequent lines
+contain the macro definition @emph{(starting in a column other than the first
+one)}.  Any number of macros may appear in the same file, as long as the macro
+name is given in the first column and the definition starts in some other
+column. The first two blanks or tabs are deleted in continuation
+lines, but any further indentation will survive into the macro definition.
+Tabs will be replaced by spaces as the macro is read. By default a tab
+is taken to be 8 characters wide, but this may be changed by specifying
+@code{tabsize} in your @file{.sm} file.
+@findex .sm, tabsize
+@findex macros, disk format
+
+@findex macros, usage
+When a macro is invoked, by typing its name wherever a command is
+valid, for example at a prompt, it first reads its arguments from the
+terminal (if they are not in the lookahead buffer, it will prompt you
+for them), and defines them as the variables $1, @dots{}, $9,
+before executing the commands contained within the macro. The
+number of arguments must be declared correctly.
+@findex macros, variable number of arguments
+As an alternative it is possible to declare that a macro has a
+variable number of arguments by declaring 10 or more@footnote{More accurately,
+by specifying two or more digits; @pxref{Macro} for more details and examples}.
+The macro will
+then expect between 0 and the number declared modulo 10 arguments, all
+on the same line as the macro itself. (i.e. the argument list is
+terminated by a newline, which may either be a `real' one, or an \n).
+If the number of arguments is 100 or more it is still reduced modulo 10,
+but the last argument is taken to be the rest of the line (which may
+consist of many words). 
+@findex macros, read rest of line
+The macro may find out if a particular argument is provided by using 
+@code{$?} to see if the variable is defined. For example the macro @code{check},
+in the format in which it would appear in a file,
+@example
+check  11   if($?1 == 1) @{ echo Arg 1 is $1 @}\n
+@end example
+@noindent
+will echo its argument, if it has one, and
+@example
+split  102  if($?2 == 0) @{ DEFINE 2 "(none)" @}
+@end example
+@example
+echo $1:$2:
+@end example
+@noindent
+if invoked as @code{split word many arguments} will print @code{word:many arguments:}.
+If you add an explicit newline, @code{split word many\n arguments},
+you'll get @code{word:many:} and then a complaint that @code{arguments}
+is not a macro.
+
+If you try to execute a non-existent macro, if it is defined SM will
+call a special macro called @code{macro_error_handler}.
+It has two arguments; the first is the string
+@code{NOT_FOUND}, and the second is the name of your non-existent macro.
+@findex macros, not found
+@findex macros, error handler
+When you start SM, the error handler is:
+@example
+macro_error_handler 2 ## handle errors associated with macros
+		if($?missing_macro_continue) @{
+		   echo $2 is not a macro
+		   RETURN
+		@}
+		if('$1' == 'NOT_FOUND') @{
+		   del1
+		   define 3 "$2 is not a macro; aborting"
+		@} else @{
+		   define 3 "Unknown macro error for $2: $1"
+		@}
+		USER ABORT $3
+@end example
+@noindent
+which causes an immediate syntax error (the @code{USER ABORT}),
+and remove the errant command from the history list (the @code{del1}). You
+can turn this off by defining the variable @code{$missing_macro_continue},
+which you can do in your @file{.sm} file; this was the default in SM versions
+2.1.0 and earlier, and is what you get if the macro
+@code{macro_error_handler} isn't defined.
+
+Unfortunately we can get into
+trouble with @code{IF}'s at the end of macros, for much the same reason
+that @code{RETURN} can get into trouble (@pxref{Command Internals}).
+The symptoms are that a macro either gets the arguments that were passed to the
+macro that called it, or complains that it can't handle numbered
+variables at all because it isn't in a macro at all.
+To avoid this, there is an explicit \n at the end of the macro @code{check}.
+@findex weird, lost arguments to macros
+It is possible to redefine the values of arguments (it won't affect
+the values you originally specified, arguments are passed by value),
+or to @code{DEFINE} values for arguments that you didn't declare. The
+latter case allows you to have temporary variables, local in scope to
+the macro.
+@findex variables, temporary
+An example is the @code{rel} macro, which is defined as
+@example
+rel  2  DEFINE 1 ($1) DEFINE 2 ($2) RELOCATE $1 $2
+@end example
+@noindent
+which allows you to specify expressions to the relocate command.
+For more examples see the `useful macros' section.
+
+@findex macros, comments
+@findex comments in macros
+Newlines are allowed within macros, and as usual
+any text from a @code{#} to the
+next newline is taken to be a comment. If a @code{#} is needed within a
+macro, escape the @code{#} with a @code{\} or enclose it in double quotes.
+If a macro starts with a comment the comment will not affect the
+macro's speed of execution. Macros starting with @code{##} are
+treated specially by @code{SAVE} (they are not saved) and @code{MACRO LIST}
+(they are not listed if @code{VERBOSE} is 0).
+
+@findex macros, deletion
+@findex delete, macros
+If the macro command is given as
+@example
+MACRO name @{ DELETE @}
+@end example
+@noindent
+or
+@example
+MACRO name DELETE
+@end example
+@noindent
+the macro will be deleted (you can also delete a macro from the macro
+editor by specifying a negative number of arguments).
+If the name is already
+defined, it will be silently redefined. Macros may be nested freely, and even
+called recursively.
+For example, the definition
+@example
+MACRO aa @{aa@}
+@end example
+@noindent
+is perfectly legal, but SM will go away and think about it
+for ever if you ever type @code{aa} (or at least until you type @key{control-C}.)
+The definition
+@example
+MACRO zz @{ zz zz    # comment: not recommended @}
+@end example
+@noindent
+is also legal, but in this case if you execute it SM
+will fill its call and macro stacks
+and complain when it grabs more space. As
+before, it will think about it forever. More useful examples of
+recursive macros are @code{compatible} (@pxref{Mongo}), which starts
+@example
+IF($?1 == 0) @{ compatible 1 RETURN @} @dots{}
+@end example
+@noindent
+providing a default value for its argument, and @code{repeat} which is
+discussed under @code{DO}.
+
+To find how a particular macro is defined, type @code{HELP macroname}.
+@findex macros, help
+@findex macros, listing
+@findex macros, not listing
+For
+a listing of the first line of all currently defined macros, type
+@example
+LIST MACRO
+@end example
+@noindent
+or
+@example
+LIST MACRO x y
+@end example
+@noindent
+The optional @code{x} and @code{y} are the alphabetical (actually asciial ) range of
+macro names to list. As mentioned above, if @code{VERBOSE} is 0, macros
+starting with @code{##} are not listed by this command. There is a
+macro @code{ls} defined as @code{DELETE HISTORY LIST MACRO} which will
+list macros without appearing on the history list. (Or you could
+overload @code{list}; see under overload in the index).
+@findex macros, reading from disk
+@findex read, macro
+@findex startup macros
+
+@findex apropos, examples
+@findex examples, apropos
+A related command is @code{APROPOS pattern} which lists all macros and
+help files@footnote{usually; this may not be available on
+Unix System V and VMS systems.}
+whose names or initial comments contain the @code{pattern}, for example
+@example
+APROPOS histogram
+@end example
+@noindent
+would list @code{bar_hist} and @code{get_hist} as well as the
+abbreviations @code{hi} and @code{hist}. If you wanted to find all
+macros starting with a single comment character which mentioned
+@code{histogram} you could say
+@example
+APROPOS "^#[^#] .*histogram"
+@end example
+@noindent
+where the double quotes prevent the @code{#}'s being interpreted as
+comment characters.
+@example
+APROPOS ^[a-z]
+@end example
+@noindent
+will list all macros beginning with lowercase letters -- this is
+similar to @code{MACRO LIST a z}, but pays no attention to the value of
+@code{VERBOSE}.
+
+It is also
+possible to read macros in from disk, and in fact when SM is started,
+it tries to read the file @file{default} in the directory specified by
+@code{macro} in the environment file @file{.sm}. The command to read a
+file of macros is
+@example
+MACRO READ filename
+@end example
+Any line with a # in the first column is treated as a comment, and is
+echoed to the terminal if @code{VERBOSE} is greater than zero.
+@findex comments, in macro files
+@findex macros, writing to disk
+@findex write, macro
+All the currently defined macros may be written to a file with
+the command
+@example
+MACRO WRITE filename
+@end example
+@noindent
+If the file exists, it will be overwritten (under VMS, a new version of
+the file will be written).
+Macros are written out
+in alphabetical order.
+
+The command
+@example
+MACRO WRITE macroname filename
+@end example
+@noindent
+writes the macro @code{macroname} to the file @code{filename}. 
+This command remembers which file it last wrote a macro
+to, and if the current filename is the same then it appends the macro
+to the end of the file, otherwise it overwrites it (or creates a new 
+version under VMS)
+unless the @code{filename} is preceded by a @code{+},
+in which case the macros will always be appended.
+This allows a set
+of related macros to be written to a file.
+@findex macros, undefining sets
+@example
+MACRO DELETE filename
+@end example
+undefined all macros which are defined in @code{filename}.
+This allows a file of macros to be read in, used and forgotten again.
+The difference between this command and @code{MACRO macroname DELETE}
+should be noted.
+The @code{SAVE} command is probably a better way of saving all current macros.
+The format of macros on disk is @code{name nargs text}, where
+@code{nargs} may be omitted if it is 0. Continuation lines start with a
+space or tab. See the files in the directory specified by @code{macro} in your @file{.sm} file for examples.
+
+@findex macros, from history list
+@findex history, converting to a macro
+It is possible to define macros from the history list. The command
+@example
+MACRO name i j
+@end example
+@noindent
+defines a macro @code{name} to be lines @code{i} to @code{j} inclusive of the history list,
+as seen using @code{HISTORY}.
+@findex macros, to history list
+@findex history, reading from a macro
+The opposite of this command, which places a macro upon the
+history list, is @code{WRITE HISTORY name}. Examples of these commands are the
+macros @code{playback} and @code{edit_hist} given in the section `A
+Simple Plot'. This way of defining macros can
+be convenient if you have created a useful set of commands on the
+history buffer, and now want to save it in a macro and go on to other things.
+Editing the playback buffer, and then changing its name to something
+else (see next paragraph) is a convenient way of saving it that
+implicitly uses this command.
+
+@findex macros, editing
+@findex edit, editing a macro
+Macros may be edited, using essentially the same keys as described
+above for the history editor.
+The command @code{MACRO EDIT name} starts up the
+editor, which works on one line at a time.@footnote{you might prefer to
+use the macro @code{ed} which
+is equivalent to @code{MACRO EDIT}, but doesn't appear on the history
+list and, if invoked without a macro name, will edit the same macro as
+last time. In addition, you can list the current macro with @code{hm}.}
+The zeroth line has the format
+@example
+0> Macro name : Number of arguments: n
+@end example
+@noindent
+where @code{name} is the name of the macro, and @code{n} is the number of arguments to the
+macro. If this line is
+changed, except to change @code{name} or @code{n}, any changes made to the
+macro will be ignored (note that the space after @code{name} is
+required). This can be useful if you decide that you 
+didn't want to make those changes after all. Changing @code{name} or
+@code{n} has the obvious effect, except that if @code{n} is negative the
+macro is deleted when you exit the editor. An empty macro is also deleted
+when you leave the editor (i.e. one with no characters in it, not even
+a space).
+The first line that you are presented with is the first line in the macro
+rather than this special one.
+Use @key{control-N} (or
+@tex
+$\downarrow$
+@end tex
+@ifinfo
+down-arrow
+@end ifinfo
+) to get the next line,
+@key{control-P} (or
+@tex
+$\uparrow$
+@end tex
+@ifinfo
+up-arrow
+@end ifinfo
+) to get the previous line. Carriage return 
+(@key{control-M}) inserts a new line before the cursor, breaking the
+line in the process, while @key{control-O} inserts a new line before
+the current line.
+To save the
+changes and return to the command interpreter use @key{control-X}.
+All other
+keys have the same meaning as for the history editor (e.g. @key{control-A} to
+go to the beginning of a line).
+Note that @key{control-K} and @key{control-Y} can be used to copy lines, and
+that the bindings can be changed with @code{EDIT} or @code{READ EDIT}.
+
+It wouldn't be hard to write a macro that wrote out a macro to a file,
+invoked your favourite text editor, then read the new definition back
+in; see the macro @code{emacs_all} for ideas.
+
+@findex key, defining keyboard macro
+It is sometimes convenient to define a key to be equivalent to typing
+some string, such as @code{playback} or @code{cursor}. This can be done
+with the @code{KEY} command, whose syntax is @code{KEY key string}.
+If you just type @code{KEY} @kbd{<CR>} you'll be prompted for the key and
+string. In this case you are not using the history editor to read the key,
+and you can simply hit the desired key followed by a space and the
+desired string, terminated by a carriage return. If you put @code{KEY},
+@code{key} and @code{string} on one line you'll probably have to quote
+the @code{key} with @key{control-Q} or ESC-q, or write the escape sequences
+out in the way used by @code{EDIT}. If this sounds confusing, here is
+an example. Type @code{KEY}@kbd{<CR>}, then hit the PF1 key on your terminal,
+type a space, and type @code{"echo Hello World\N"}. Now just hit the
+PF1 key and see what happens. (The closing \N meant `and put a newline
+at the end'). These keyboard macros are not generally terminal
+independent, but they can be convenient. Definitions for the `PF' keys
+on your keyboard can be made in a terminal-independent way by
+specifying the @code{key} as @code{pfn} or @code{PFn} where n is 1, 2, 3,
+or 4.
+If you always use the same
+terminal you might want to put some @code{KEY} definitions in your private
+startup file (see the discussion of @code{startup2} in the section on
+useful macros). The current @code{KEY} definitions are listed with the
+@code{LIST EDIT} command, along with the other key bindings.
+
+@node Loops and If, Getting Help, Macros, Top
+@chapter DO and FOREACH loops, WHILE loops, and IF statements
+
+@findex do loops
+Related to the macro facility are the @code{DO}, @code{FOREACH},
+and @code{WHILE} commands.
+@code{IF} is included here as a flow-of-control keyword. 
+
+The syntax for a @code{DO} loop is
+@example
+DO variable = expr1 , expr2 [ , expr3 ] @{ command_list @}
+@end example
+@noindent
+where the third expression is optional, defaulting to 1. The value of variable
+(@code{$variable}) is in turn set to @code{expr1}, @code{expr1+exp3}, @dots{}, 
+@code{expr2}, and the
+commands in @code{command_list} executed. Changing the value of @code{$variable}
+within the command list
+has no effect upon the loop. Do loops may be nested, but the name of
+the variable in each such loop must be distinct. A trivial example
+would be
+@example
+DO val = 123, 123+10, 2 @{ WRITE STANDARD $val @}
+@end example
+@noindent
+while a more interesting example would be
+the macro @code{square} discussed in the section on examples.
+
+For loops within macros, it's often a good idea to make the loop variable
+local: DEFINE val LOCAL DO val @dots{} (@pxref{Define}).
+
+Because the body of the loop must be scanned (and parsed) repeatedly, loops
+with many circuits are rather slow. If at all possible you should try
+to use vector operations rather than @code{DO} loops.
+@findex do, avoiding do loops
+For example the loop
+@example
+DO i=0,DIMEN(x)-1 @{
+     IF(x[$i] >= 0) @{
+        SET x[$i]=SQRT(x[$i])
+     @} ELSE @{
+        SET x[$i]=0
+     @}
+@}
+@end example
+@noindent
+is better written as
+@example
+SET x=(x >= 0) ? SQRT(x) : 0
+@end example
+@noindent
+where the ternary operator @code{?:} is discussed in the section on vectors
+(@pxref{Vectors}).  If you only wanted the elements with @code{x >= 0},
+you'd have said
+@example
+     SET x=SQRT(x) if(x >= 0)
+@}
+@end example
+
+@findex while loops
+As an alternative to DO loops, SM also has a general looping command, a
+@code{while} loop, for example
+@example
+set i=0
+while @{i < 10@} @{
+        @r{commands}
+        set i=i+1
+@}
+@end example
+@noindent
+is equivalent to a DO loop. In addition to being more flexible,
+@findex break, exiting while loops
+@findex while loops, exiting
+WHILE loops may also be interrupted with the BREAK command, so the
+previous example could have been written (using variables instead of
+vectors)
+@example
+define i 0
+while@{1@} @{
+        echo Hi $i
+        define i ($i+1)
+        if($i == 10) @{ break @}
+@}
+@end example
+
+@findex foreach loops
+Foreach loops are similar to do loops, with syntax
+@example
+FOREACH variable ( list ) @{ command_list @}
+@end example
+@noindent
+,
+@example
+FOREACH variable @{ list @} @{ command_list @}
+@end example
+@noindent
+, or
+@example
+FOREACH variable vector @{ command_list @}
+@end example
+@noindent
+where the list may consist of a number of words or numbers.
+a vector.
+Each element in the list (or of the vector) is in turn defined to be the
+value of
+@code{$variable}, and then the commands in @code{command_list} are executed,
+so that for example the commands:
+@example
+FOREACH i ( one 2 three ) @{ WRITE STANDARD $i @}
+SET str = @{one 2 three@}
+FOREACH i str @{ WRITE STANDARD $i @}
+@end example
+@noindent
+will print out:
+@example
+one
+2
+three
+@end example
+@noindent
+twice.
+Foreach loops may be nested, but again the variables must be distinct.
+You can delimit the list with @code{@{@}} so that it can include
+keywords (and other things that you want treated as strings such as @code{0.1}
+or @code{$date}), but even then you can't have the word @code{delete} in the
+list of a foreach. Sorry.
+@findex weird, delete in foreach
+It's often helpful to make the foreach variable LOCAL (@pxref{Set})
+inside macros, e.g.
+@example
+DEFINE var LOCAL  FOREACH var @dots{}
+@end example
+
+@findex if statements
+If statements look similar, with syntax
+@example
+IF ( expr ) @{ list @} ELSE @{ list2 @}
+@end example
+@noindent
+where the @code{ELSE} clause is optional, but if it is omitted the closing
+@} @emph{must} be followed by a newline (or explicit \n)
+(@pxref{Command Internals}).
+
+If the (scalar) expression is true (i.e. non-zero), then the commands
+@code{list} are executed, otherwise @code{list2} is, if present. It is also
+possible to use @code{IF} statements directly in plotting commands, for
+example @code{POINTS x y IF(z > 1/x)}.
+
+You can use logical operators within the @code{expr} (@pxref{If}).
+Note that @code{&&} and @code{||} do @emph{not}`short-circuit'; that is,
+in the expression @code{expr1 && expr2} both @code{expr1} and @code{expr2}
+are evaluated.  In a scalar context (e.g. in an IF statement), the operators
+@code{AND} and @code{OR} are available instead, and they do only evaluate
+the right hand side if it's value is required.
+
+It is possible to write general loops in SM by using of tail-recursive macros.
+@footnote{This was the only way before the days of WHILE loops (@pxref{While}),
+and as the technique is interesting, we've kept this section in the manual}
+The simplest example would be
+@example
+macro aa @{echo hello, world\n aa@}
+@end example
+@noindent
+which prints @code{hello, world} and then calls itself, so it prints
+@code{hello, world} and then calls itself, and so on until you hit @key{control-C}.
+The absence of
+a space before the closing brace is very important, as it allows SM to
+discard the macro before calling it again, which means that it won't fill
+up its call stack and start complaining. A more interesting example is
+the macro @code{repeat} which repeats a given macro while the given
+condition is true. For example, if you say
+@example
+macro aa @{ set i=i+1 calc i @}
+set i=0 repeat aa while i < 10
+@end example
+@noindent
+it will print the integers from 0 to 9. With a few checks, bells, and whistles
+the macro looks like:
+@findex macros, tail recursion
+@findex while loops
+@findex loops
+@example
+repeat 103      # Repeat a macro `name' while the condition is true
+                # syntax: repeat name while condition
+                # Example: set i=0 repeat body while i < 10
+                if('$2' != 'while') @{
+                   echo Syntax: $0 macro while condition
+                   return
+                @}
+                if(int((whatis($1)-4*int(whatis($1)/4))/2) == 0) @{
+                   echo $1 is not a macro
+                   return
+                @}
+                macro _$1 @{
+                   if(($!!3) == 0) @{ return @}
+                   $!!1
+                   _$!!1@}
+                _$1
+                macro _$1 delete
+@end example
+and is one of SM's default macros (type ``help repeat'' if you don't
+believe me).
+
+@node Getting Help, Save and Restore, Loops and If, Top
+@chapter The Help Command
+@findex help
+There is an online help command. Typing @code{HELP} @kbd{<CR>}
+or @code{HELP HELP}
+gives a list of the help menu, or @code{HELP keyword} gives help with that keyword.
+The help menu consists
+of any files in the directory specified by the entry @code{help} 
+in the environment file, so for example @code{HELP data} types
+the file @code{data} in that directory. For all cases except @code{HELP help}, the
+file is filtered through a version of the Unix utility @file{more} which pages
+the file. When @file{more} offers you a @code{`...'} prompt, type @code{?} to see your
+options.
+@findex paging through lists
+The same filter is used by e.g. @code{LIST MACRO }.
+If the command is @code{HELP word}, after @code{HELP} tries to print the file
+@code{word}, it looks to see if @code{word} is a macro, and if so prints
+its definition. If @code{word} is a variable, its value is then
+printed, and if @code{word} is also a vector @code{HELP}
+@findex help, variable
+@findex variables, help
+@findex help, vector
+@findex vectors, help
+prints the dimension, followed by the help
+string associated with the vector
+@code{vector_name} (see section on vectors).
+
+The @code{APROPOS} command is also useful when you need help.
+@code{APROPOS string} scans all the help files (if your operating
+system allows SM to do such things) and macro headers looking for the
+string. The string may actually be a pattern (see the description
+of @code{APROPOS} for details). If @code{VERBOSE}
+(@pxref{Verbose}) is zero only
+the lines from the help files matching the pattern are printed; if
+it is larger you are given a couple of lines of context on each side.
+
+It is worth remembering that the index to this manual has an entry
+under @code{weird}, wherein are listed all sorts of strange happenings,
+with explanations and suggestions for workarounds.

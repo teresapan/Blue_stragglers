@@ -1,0 +1,13 @@
+SM|sm:\
+	:cb=\e#:ce=$:oc:pb=^\p( |	)\a:\
+	:kw=ctype define delete do edit foreach help history if \
+	list macro print prompt quit read return standard termtype \
+	verbose user \
+	version write \
+	abs acos asin atan cos concat dimen exp fft lg ln pi sin sqrt sum tan \
+	angle axis box connect cursor data device \
+	draw erase errorbar expand format grid \
+	histogram identification label limits \
+	lines location ltype lweight notation points ptype putlabel range \
+	relocate set show sort spline sum ticksize window xlabel ylabel \
+	bo con da lim lin poi ti xla yla

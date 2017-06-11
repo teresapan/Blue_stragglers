@@ -1,0 +1,31 @@
+@node Expand, Fft, Errorbar, Commands
+
+@iftex
+@syntax Expand.
+@end iftex
+@example
+Syntax: EXPAND expr
+@end example
+@pindex Expand
+@findex character size
+@findex points, size
+   EXPAND expands all characters and points, its default is 1.0. Note that the
+EXPAND factor is used in determining the plot window size in the WINDOW
+command. This means you should declare your EXPAND size to SM (if other
+than the default) before you use WINDOW. The current value of EXPAND
+is available as a @code{DEFINE expand |}.
+@findex internal variables, expand
+
+If EXPAND is set to exactly 1, and ANGLE is exactly 0, then SM
+will use hardware fonts, when available, in writing labels. This is faster,
+but if you don't like it say ``EXPAND 1.00001'', or ``ANGLE 0.00001'',
+or use a \r explicitly to select the roman font.
+
+EXPAND can in fact be given a vector of values, which are used for
+each point in a POINTS command. This supersedes the use of a fractional
+PTYPE (although we still support it as a quaint anachronism). Using
+vectors for both ANGLE and EXPAND makes it easy to draw a vector
+field, see (for example) the @code{vfield} macro.
+@findex vector field
+If more points are specified than
+the dimension of expr, the first element will be used for the excess.

@@ -1,0 +1,8 @@
+#This is a set of DCL key maps for SM
+#name			key
+toggle_overwrite	^A
+start_of_line		^H
+delete_previous_word	^J
+yank_buffer		^R
+attach_to_shell		^Y
+exit_editor		^Z

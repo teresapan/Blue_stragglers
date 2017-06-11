@@ -1,0 +1,1245 @@
+#!/bin/sh
+#
+# Setup SM for new sites
+#
+# First find what sort of system we are running
+#
+if [ "`echo -n`" = "" ]; then		# echo supports -n
+	n=-n
+fi
+if cp -p set_opts .tst > /dev/null 2>&1; then
+	p=-p				# cp supports -p
+fi
+rm -f .tst
+#
+# Try to guess the byte order
+#
+if [ "`echo d2 |od -d |sed -n -e 's/^00*  *\([^ ]*\).*/\1/p'`" = 25650 ]; then
+	byte_swap=0
+else
+	byte_swap=1;		# DEC/Intel byte order
+fi
+# Where to install SM
+#
+dest="/usr/local"
+#
+# Where to find bison
+#
+bison=""
+#
+# sizeof(vectors[]) should be 4/8?
+sizeof_data=
+#
+# Language to swig to
+swigLanguage=""
+#
+# See what platform we are on.
+#
+machine=""
+if sh -c uname > /dev/null 2>&1 ; then
+	case `uname` in
+	  AIX)
+		machine=rs6000;;
+	  HP-UX)
+		machine=hp;;
+	  FreeBSD)
+		machine=freebsd;;
+	  Linux)
+		machine=linux;;
+	  Darwin)
+		machine=macosx;;
+	  IRIX|IRIX64)
+		machine=sgi;;
+	  OSF1)
+		machine=alpha;;
+	  SunOS)
+		machine=sun;;
+	  ULTRIX)
+		machine=ultrix;;
+	  CYGWIN*)
+		machine=cygwin32;;
+	esac
+fi
+#
+# Parse arguments
+#
+while [ X"$1" != X"" ]; do
+	case $1 in
+	  -c)
+	  	choose_misc=1;;
+	  -d)
+		desired_devs=
+		for d in $2; do
+		    if [ $d = "x11" ]; then
+			d=X11
+		    fi
+		    desired_devs="$desired_devs $d"
+		done
+		
+		shift;;
+	  -f)
+		force=1;;
+	  -[h?])
+		echo "Usage: set_opts [ options]"
+		echo "options are:"
+		echo "	-c              Choose e.g. vector data type"
+		echo "	-d \"dev_list\" Desired devices"
+		echo "	-f		Force; don't ask user questions"
+		echo "	-h		Print this message"
+		echo "	-i install_dir	Choose an installation directory"
+		echo "	-m name		Specify a machine type"
+		echo "	-n		Don't make any changes"
+		echo "	-p [4|8]        Choose length of integers/reals"
+		echo "	-q		Suppress some messages"
+		echo "	-s [no]swap	Force SM to [not] byte swap binary data"
+		echo "	-S lang		Use swig to build an interface module for lang"
+		echo "	-v		Be more verbose"
+		echo "	-x		Make script more verbose at the sh level"
+		echo ""
+		exit 0;;
+	  -i)				# specify an installation directory
+		if [ X"$2" = X"" ]; then
+			echo "You must specify a directory with -i" >&2
+			exit 1
+		else
+			dest=$2
+			destflag=1
+		fi
+		shift;;
+	  -m)				# specify a machine
+		if [ X"$2" = X"" ]; then
+			echo "You must specify a machine name with -m" >&2
+			exit 1
+		else
+			machine=$2
+			mflag=1
+		fi
+		shift;;
+	  -n)
+		nochange=1;;
+	  -p)
+		case "$2" in
+		  4|8)
+			sizeof_data=$2;;
+		  *)
+			echo "You must specify 4 or 8 with -p" >&2
+			exit 1;;
+		esac
+		shift;;
+	  -q)
+		quiet=1;;
+          -s)
+		case "$2" in
+		  noswap)
+			byte_swap=0;;
+		  swap)
+			byte_swap=1;;
+		  *)
+			echo "You must specify noswap or swap with -s" >&2
+			exit 1
+		esac;;
+	  -S)				# Use swig
+		if [ X"$2" = X"" ]; then
+			echo "You must specify a language with -S" >&2
+			exit 1
+		else
+			swigLanguage=$2
+		fi
+		shift;;
+	  -v)
+		verbose=1;;
+	  -x)
+		set -vx;;
+	  *)
+		echo "Unknown flag: $1" >&2
+		$0 -h >&2
+		exit 1;;
+	esac
+	shift
+done
+#
+# We are ready to talk to the user
+#
+cflags=""
+ldflags=""
+incfiles="`pwd`/src"
+#
+if [ "$quiet" = "" -a "$force" = "" ]; then
+	cat <<DD.SYSIN
+I am going to ask you some questions to decide how to setup SM. If there's
+something in [square brackets] at the end of a line, it's the default value;
+to accept it just hit carriage return. If there are alternatives separated
+by a |, the default value is the first one.
+
+It should be safe to hit ^C at any time if you want to start again.
+
+DD.SYSIN
+fi
+if [ "$mflag" = "" ]; then
+	echo \
+	"What machine are you on? (\"all\" will give a list of possibilities)."
+	while true; do
+		old_machine=$machine
+		echo $n "Choose a machine: [$machine] "
+		read reply
+		if [ "$reply" != "" ]; then
+			machine=$reply
+		fi
+		if [ "$machine" != "all" ]; then
+			break;
+		fi
+		echo "Valid machines include:"
+		echo "  alpha           DEC Alpha running OSF1"
+		echo "  hp              Hewlett Packard"
+		echo "  linux           A PC running Linux"
+		echo "  freebsd		A PC running FreeBSD"
+		echo "  macosx		A Mac running OS/X"
+		echo "  rs6000          IBM Risc 6000"
+		echo "  sgi             Silicon Graphics"
+		echo "  sun             Sun 3 or Sparc"
+		echo "  vax             Vax running Unix or VMS"
+		echo "  ultrix          A Machine running Ultrix"
+		echo "  3b1             AT&T PC"
+		echo "  cygwin32        Win32 machine with cygwin32 compiler"
+		if [ "$old_machine" != "" ]; then machine=$old_machine; fi
+done
+fi
+
+case $machine in
+  alpha)
+	cc="cc -std1 -Dalpha"
+	devs="IMAGEN TK X11";;
+  hp)
+	cc="c89 -Dhp"
+	if [ -f /usr/include/X11R5/X11/Xlib.h -a \
+					! -f /usr/include/X11/Xlib.h ]; then
+		sysincX11="/usr/include/X11R5"
+	fi
+	if [ -f /usr/lib/X11R5/libX11.a -a \
+					! -f /usr/lib/libX11.a ]; then
+		syslibX11="/usr/lib/X11R5"
+	fi
+	devs="X11";;
+  freebsd|linux|macosx)
+	case $machine in
+	  freebsd)
+		cc="cc -Wall -DFreeBSD";;
+	  macosx)
+		cc="cc -Wall -DmacOSX"
+		bison=/usr/bin/bison
+		;;
+	  *)
+		cc="cc -Wall -D$machine";;
+	esac
+
+	so="so"
+	case $machine in
+	    macosx)
+		so_ldflags="-bundle -undefined suppress -flat_namespace";;
+	    *)
+		so_ldflags="-shared";;
+	esac
+
+	found=0
+	for X11Version in X11 X11R6; do
+	    if [ -f /usr/$X11Version/include/X11/Xlib.h -a ! -f /usr/include/X11/Xlib.h ]; then
+		sysincX11="/usr/$X11Version/include"
+		found=1
+	    fi
+	    for suffix in a so dylib; do
+		if [ -f /usr/$X11Version/lib/libX11.$suffix -a ! -f /usr/lib/libX11.$suffix ]; then
+		    syslibX11="/usr/$X11Version/lib"
+		    found=1
+		    break
+		fi
+	    done
+
+	    if [ $found = 1 ]; then
+		break
+	    fi
+	done
+
+	devs="TK X11";;
+  rs6000)
+	version="`uname -a | awk '{print $4}'`"
+	case $version in 
+	  3*)
+	     cc="c89 -Drs6000";;
+	  *)
+	     cc="cc -g -DSYSV -DAIXV3 -Drs6000 -qchars=signed";;
+	esac
+
+	devs="IMAGEN SGI TK X11";;
+  sgi)
+	if [ "$force" = "" ]; then
+		echo $n "Do you want to use gcc? [n/y] "
+		read ans
+	else
+		ans=""
+	fi
+	case $ans in
+	  y*)
+		cc="gcc -Wall -D_POSIX_SOURCE -Dsgi";;
+	  *)
+		cc="cc -Dsgi -fullwarn";
+		case `uname -r` in
+	 	  4*)
+			cc="$cc -ansiposix"
+			# Warnings turned off:
+			# 24: constant in conditional; used by <stdarg.h>. Grrr
+			# 183,262,287: problems with static functions not
+			# having protos
+			# 269: very picky signed/unsigned intermediate result
+			cc="$cc -woff 24,183,262,269,287";;
+		  5*)
+			cc="$cc -ansiposix"
+			# Warnings turned off:
+			# 835: no prototypes for static functions
+			cc="$cc -woff 835";;
+		  *)
+			cc="$cc -n32 -xansi -D_POSIX_SOURCE -D_BSD_TYPES"
+			# Warnings turned off:
+			# 1116  non-void function "..." should return a value
+			# 1174 function "..." was declared but never referenced
+			# 1196 function declared implicitly
+			# 1429 the type "long long" is nonstandard
+			# 1498 no prototype for the call to ...
+			# 1506 implicit conversion from float to unsigned long
+			# 1692 prototyped function redeclared without prototype
+			cc="$cc -woff 1116,1174,1196,1429,1498,1506,1692";;
+		esac;;
+	esac
+
+	case `uname -r` in
+ 	  4*)
+		cc="$cc -Dsgi4";;
+	esac
+
+	devs="IMAGEN TK X11 SGI";;
+  sun)
+	version=`uname -r | sed -e 's/^\(.\).*/\1/'`
+	if [ "$version" -ge "5" ]; then
+		solaris=1			# Oh deary me
+	fi
+
+	sysincX11=""
+	syslibX11=""
+	if [ -f /usr/openwin/include/X11/Xlib.h ]; then
+		echo $n "Do you wish to use the openwindows version of X Windows? [y/n] "
+		read ans
+		case $ans in
+		  n*)
+			;;
+		  *)
+			sysincX11="/usr/openwin/include"
+			syslibX11="/usr/openwin/lib";;
+		esac
+	fi
+	if [ "X$sysincX11" = "X" -a -f /usr/include/X11/Xlib.h ]; then
+		echo $n "Do you wish to use the version of X in /usr/include/X11 and /usr/lib/X11? [y/n] "
+		read ans
+		case $ans in
+		  n*)
+			;;
+		  *)
+			sysincX11="/usr/include"
+			syslibX11="/usr/lib/X11";;
+		esac
+	fi
+	while [ "$sysincX11" = X"" ]; do
+		echo $n "Specify location of X include files "
+		read sysincX11
+		if [ ! -d "$sysincX11" ]; then
+			echo "$sysincX11 isn't a directory; please try again"
+			unset sysincX11
+		fi
+	done
+	while [ X"$syslibX11" = X"" ]; do
+		echo $n "Specify location of X lib files "
+		read syslibX11
+		if [ ! -d "$syslibX11" ]; then
+			echo "$syslibX11 isn't a directory; please try again"
+			unset syslibX11
+		fi
+	done
+
+	echo $n "Do you want to use gcc? [n/y] "
+	read ans
+	case $ans in
+	  y*)
+		if [ "$solaris" = "1" ]; then
+			cc="gcc -Wall -Wno-uninitialized -Dsolaris"
+		else
+			cc="gcc -Wall"
+			echo $n "Do you have ANSI include files? [n/y] "
+			read ans
+			case $ans in
+			  y)
+				cc="$cc -DANSI_INCLUDE"
+
+				echo $n "how about POSIX include files? [n/y] "
+				read ans
+				case $ans in
+				  y)
+					cc="$cc -DPOSIX_INCLUDE";;
+				esac;;
+			esac
+		fi;;
+	  *)
+		if [ "$solaris" = "1" ]; then
+			cc="cc -Xc -Dsun -Dsolaris"
+		else
+			echo $n "How about acc? [n/y] "
+			read ans
+			case $ans in
+		  	y*)
+				echo \
+      "You'll get compilation warnings from sun's system headers. Ignore them."
+				cc="acc -Dsun";;
+		  	*)
+				cc="cc";;
+			esac
+		fi;;
+	esac
+	if [ "$solaris" = "1" ]; then
+		devs="IMAGEN TK X11"
+	else
+		devs="IMAGEN SUN_VIEW TK X11"
+	fi;;
+  vax)
+	echo "This installation on a vax is not tested"
+	echo "If appropriate, you might try saying that you are running ultrix"
+	echo "If it works please send mail to rhl@astro.princeton.edu"
+	cc="cc -Dvax"
+	devs="IMAGEN TK X11";;
+  ultrix)
+	echo $n "Do you want to use gcc? [n/y] "
+	read ans
+	case $ans in
+	  y*)
+		cc="gcc -Wall -Dultrix";;
+	  *)
+		cc="cc -Dultrix";;
+	esac
+	devs="IMAGEN TK X11";;
+  3b1)
+	devs="IMAGEN UNIXPC";;	
+  cygwin32)
+	cc="gcc -DWIN32"
+	if [ -f /usr/X11R6.3/include/X11/Xlib.h -a \
+					! -f /usr/include/X11/Xlib.h ]; then
+		sysincX11="/usr/X11R6.3/include"
+	fi
+	if [ -f /usr/X11R6.3/lib/libX11.a -a \
+					! -f /usr/lib/libX11.a ]; then
+		syslibX11="/usr/X11R6.3/lib"
+	fi
+ 	if [ -f /usr/X11R6.4/include/X11/Xlib.h -a \
+					! -f /usr/include/X11/Xlib.h ]; then
+		sysincX11="/usr/X11R6.4/include"
+	fi
+	if [ -f /usr/X11R6.4/lib/libX11.a -a \
+					! -f /usr/lib/libX11.a ]; then
+		syslibX11="/usr/X11R6.4/lib"
+	fi
+	devs="X11";; 
+  *)
+	echo "I don't understand $machine; please configure by hand"
+	echo "When you are happy, please send mail to rhl@astro.princeton.edu"
+	exit 1;;
+esac
+#
+# Do we need to byte swap?
+#
+if [ $byte_swap = "1" ]; then
+	cc="$cc -DNEED_SWAP"
+fi
+#
+if [ "$force" = "" ]; then
+	echo "You are on a $machine using the"
+	echo "	$cc"
+	echo $n "compiler; is this OK? [y|n] "
+	read reply
+else
+	reply=""
+fi
+case $reply in
+  n*)
+	echo "type compiler command or q to exit"
+	read reply
+	case $reply in
+	  q*)
+	      exit 0;;
+	  *)  
+	      cc="$reply";;
+	esac
+esac
+#
+if [ "$force" = "" ]; then
+	echo $n "What debugging/optimisation flags do you want? [-g] "
+	read reply
+else
+	reply=""
+fi
+case $reply in
+  "")
+	cflags="-g";;
+  *)
+	cflags="$reply";;
+esac
+#
+# On at least some machines (e.g. solaris boxes), specifying -L isn't enough
+# to save the user from needing a LD_LIBRARY_PATH; on at least some of these
+# machines, -R will save us
+#
+if [ "$syslibX11" != "" ]; then
+	bypass_ld_library_path=""
+	if [ "$force" = "" ]; then
+	    echo $n "Do you want to bypass LD_LIBRARY_PATH? [n/y] "
+	    read reply
+	else
+	    reply=""
+	fi
+	if [ "$reply" = "y" ]; then
+		bypass_ld_library_path=1
+	fi
+fi
+#
+# Choose devices, if not chosen on command line
+#
+if [ "$desired_devs" = "" ]; then
+	get_devs=1
+fi
+while [ "$get_devs" = 1 ]; do
+	echo "What devices do you want to compile in? Your options are:"
+	for f in "$devs"; do
+		echo $n "$f "
+	done
+	if [ X"$n" != X"" ]; then echo; fi
+	echo "Choose one at a time, carriage return on an empty line to finish"
+	while true; do
+		read dev
+		if [ "$dev" = "" ]; then
+			break
+		fi
+		ok=0
+		for f in $devs; do
+			if [ "$dev" = "$f" ]; then
+				if [ "$desired_devs" = "" ]; then
+					desired_devs=$dev
+				else
+					# add to list; SGI must come before X11
+					if [ "$dev" = "SGI" ]; then
+					      desired_devs="$dev $desired_devs"
+					else
+					      desired_devs="$desired_devs $dev"
+					fi
+				fi
+				ok=1
+				break
+			fi
+		done
+		if [ $ok = 0 ]; then
+			echo Illegal device: $dev
+		fi
+	done
+	if [ "$desired_devs" = "" ]; then
+		echo $n "You have not selected any devices; ok? [y|n] "
+	else
+		echo $n "You have selected devices: $desired_devs; ok? [y|n] "
+	fi
+	read reply
+	case $reply in
+	  n*)
+		continue;;
+	esac
+	break;
+done
+#
+# TK needs some non-standard include files/libraries
+#
+for f in $desired_devs; do
+	case $f in
+	  TK)
+		have_tk=1
+
+		if [ -f /usr/include/tcl.h -a  -f /usr/include/tk.h ]; then
+			#
+			# The O/S seems to provide both tcl _and_ tk;
+			#
+			continue
+		fi
+
+		sysincTCL="/usr/local/include"
+		while [ ! -f $sysincTCL/tcl.h ]; do
+			echo "Where are the Tcl/Tk include files?"
+			read sysincTCL
+			if [ -f $sysincTCL/tcl.h ]; then
+				break
+			fi
+			echo "I don't see tcl.h in $sysincTCL; try again"
+		done
+		sysincTK=$sysincTCL
+		while [ ! -f $sysincTK/tk.h ]; do
+			echo "I see the TCL include files, what about Tk?"
+			read sysincTK
+			if [ -f $sysincTK/tk.h ]; then
+				break
+			fi
+			echo "I don't see tk.h in $sysincTK; try again"
+		done
+
+		syslibTCL=`echo $sysincTCL | sed -e 's/include/lib/'`
+		while [ ! -f $syslibTCL/libtcl.a ]; do
+			echo Where are the Tcl/Tk library files?
+			read syslibTCL
+			if [ -f $syslibTCL/libtcl.a ]; then
+				break
+			fi
+			echo "I don't see libtcl.a in $syslibTCL; try again"
+		done
+
+		if [ ! -f $syslibTCL/libtk.a ]; then
+			syslibTK=`echo $sysincTK | sed -e 's/include/lib/'`
+			while [ ! -f $syslibTK/libtk.a ]; do
+				echo "I see the TCL libraries, what about Tk?"
+				read syslibTK
+				if [ -f $syslibTK/libtk.a ]; then
+					break
+				fi
+				echo \
+				"I don't see libtk.a in $syslibTK; try again"
+			done
+		fi;;
+	  X11|x11)
+		have_x11=1;;
+	esac
+done
+
+if [ "$have_tk" != "" ]; then
+	if [ "$have_x11" = "" ]; then
+		echo "Hmm, TK but no X11... adding X11 to your devices"
+	fi
+	#
+	# Ensure that X11 comes after TK
+	#
+	desired_devs="`echo $desired_devs | sed -e 's/X11 *//g'` X11"
+	#
+	# Tcl 8 does dynamic loading, so if we're using it we must load ldl
+	#
+	if [ X"$sysincTCL" = X"" ]; then
+		tcl_h=/usr/include/tcl.h
+	else
+		tcl_h=$sysincTCL/tcl.h
+	fi
+	
+	tcl_version=`sed -ne \
+		's/.*TCL_MAJOR_VERSION[ 	]*\([0-9]*\)/\1/p' $tcl_h`
+	if [ X"$tcl_version" != X"" -a "$tcl_version" -ge 8 ]; then
+		if [ -f /usr/lib/libdl.a ]; then
+			libdl="-ldl"
+		else
+			echo "I can't find libdl; tcl may fail to link"
+		fi
+	fi
+fi
+#
+# Now configure more obscure SM features
+#
+if [ "$choose_misc" = 1 ]; then
+	obscure=1
+else
+	if [ "$force" = "" ]; then
+		echo \
+	We can help you configure things for which the defaults are usually OK
+	fi
+	while true; do
+		if [ "$force" = "" ]; then
+			echo $n "Do you want to do so? [n|y|list] "
+			read reply
+		else
+			reply=""
+		fi
+		case $reply in
+		  l*)
+			echo "Configurable options:"
+			if [ X"$sizeof_data" = X"" ]; then
+				echo "	Data size for int/float vectors"
+			fi
+			echo "	Suffix for installed libraries"
+			echo "	Length of longest macro"
+			echo "	Length of each element of string-valued-vectors"
+			echo "	Recognise octal numbers (e.g. 0377)"
+			echo "	Build libraries that gfortran/ifort can use"
+			;;
+		  n*|"")
+			obscure=0; break;;
+		  y*)
+			obscure=1; break;;
+		esac
+	done
+fi
+#
+# This if should really be indented, but...
+#
+if [ $obscure = 1 ]; then
+#
+# Do you want to use doubles or floats for vectors?
+#
+while [ X"$sizeof_data" = X"" ]; do
+	echo $n \
+	    "Choose data size type for vectors, \"4\" or \"8\"? [4] "
+	read reply
+	case $reply in
+	    4|"")
+	        sizeof_data=4; break;;
+	    8)
+	        sizeof_data=8; break;;
+	  *)
+		echo "$reply is not a valid datatype; please try again" >&2;;
+	esac
+done
+
+if [ "$sizeof_data" = "4" ]; then
+	libsuffix=""
+else
+	d=""
+	echo $n \
+	    "Suffix for installed library names (e.g. _d) [$d] "
+	read reply
+	case $reply in
+	  "")
+		libsuffix="$d";;
+	  *)
+		libsuffix="$reply";;
+	esac
+fi
+#
+# Set MACROSIZE
+#
+macrosize=10000
+while true; do
+	echo $n "Choose length of longest macro [$macrosize] "
+	read reply
+	case $reply in
+	  "")
+		break;;
+	  [1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9]|[1-9][0-9][0-9][0-9][0-9][0-9])
+		macrosize=$reply;
+		break;;
+	  *)
+		echo "$reply is not a valid choice; please try again" >&2;;
+	esac
+done
+#
+# Set VEC_STR_SIZE
+#
+vec_str_size=40
+while true; do
+	echo $n \
+	"Choose length for string-valued-vector's elements [$vec_str_size] "
+	read reply
+	case $reply in
+	  "")
+		break;;
+	  [1-9]|[1-9][0-9]|[1-9][0-9][0-9])
+		vec_str_size=$reply;
+		break;;
+	  *)
+		echo "$reply is not a valid choice; please try again" >&2;;
+	esac
+done
+#
+# Choose whether to support octal numbers
+#
+octal="n"
+while true; do
+	echo $n \
+	"Do you want to treat numbers starting 0 as octal? [$octal] "
+	read reply
+	case $reply in
+	  "")
+		break;;
+	  [yn]*)
+		octal=$reply;
+		break;;
+	  *)
+		echo "$reply is not a valid choice; please try again" >&2;;
+	esac
+done
+if [ $octal = "y" ]; then
+	octal=1
+else
+	octal=0
+fi
+#
+# Choose whether to build libraries that gfortran/g95 and intel's ifort compiler can use
+#
+f90="n"
+while true; do
+	echo $n \
+	"Do you want libraries that f90 can use (this may incapacitate f77 users)? [$f90] "
+	read reply
+	case $reply in
+	  "")
+		break;;
+	  [yn]*)
+		f90=$reply;
+		break;;
+	  *)
+		echo "$reply is not a valid choice; please try again" >&2;;
+	esac
+done
+if [ $f90 = "y" ]; then
+	f90=1
+else
+	f90=0
+fi
+
+fi
+#
+# End of obscure options if
+#
+case $sizeof_data in
+    4|"")
+	LONG=int; REAL=float; break;;
+    8)
+	LONG=long; REAL=double; break;;
+esac
+#
+# Do you want to install libparser.a?
+#
+if [ "$force" = "" ]; then
+	echo $n \
+    "Do you want to build and install the callable parser, libparser.a? [n] "
+	read reply
+else
+	reply=""
+fi
+case $reply in
+  y*)
+	choose_parser="s/^\(all :.*\)/\1 Parser/";;
+  *)
+	choose_parser="/\(to call the SM parser.\)$/{
+		p
+		s/.*/# (not built by default)/
+	}"
+esac
+#
+# Decide where to install SM
+#
+if [ "$destflag" != "1" ]; then
+	echo $n "Top level path to install things? [$dest] "
+	read reply
+	if [ "$reply" != "" ]; then
+		dest=$reply
+	fi
+fi
+destbin=$dest/bin
+destlib=$dest/lib
+destetc=$destlib/sm
+destinfo=$dest/info
+destman=$dest/man/man1
+#
+while [ "$destflag" != "1" ]; do
+	echo "The commands make install (and make installinfo)"\
+			"will install files as follows:"
+	echo "  binaries                        $destbin"
+	echo "  linkable libraries              $destlib"
+	echo "  SM files (e.g. graphcap)        $destetc"
+	echo "  info files                      $destinfo"
+	echo "  manual pages                    $destman"
+	echo $n "is this ok? [y|n] "
+	read reply
+	case $reply in
+	  n*)
+		echo "Please specify your preferences:"
+		echo $n "Binaries [$destbin] "
+		read reply; if [ "$reply" != "" ]; then destbin=$reply; fi
+		echo $n "Libraries [$destlib] "
+		read reply; if [ "$reply" != "" ]; then destlib=$reply; fi
+		echo $n "SM Files [$destetc] "
+		read reply; if [ "$reply" != "" ]; then destetc=$reply; fi
+		echo $n "Info files [$destinfo] "
+		read reply; if [ "$reply" != "" ]; then destinfo=$reply; fi
+		echo $n "Man pages [$destman] "
+		read reply; if [ "$reply" != "" ]; then destman=$reply; fi
+		;;
+	  *)
+		break;;
+	esac
+done
+#
+# See if they want to install SM-mode for (gnu)emacs
+#
+if [ "$force" = "" ]; then
+	echo $n "Do you want to install SM-mode for (gnu)emacs? [y|n] "
+	read reply
+else
+	reply="n"
+fi
+case $reply in
+  n*)
+	destlisp=""
+	;;
+  *)
+	destlisp="$dest/emacs/site-lisp"
+	echo $n "In which directory? [$destlisp] "
+	read reply
+	if [ "$reply" != "" ]; then destlisp=$reply; fi
+	;;
+esac
+#
+# try to convert those destinations to canonical form
+#
+if [ "$verbose" = "1" ]; then
+	echo "Canonicalising Makefile variables..."
+fi
+if [ "$machine" != "freebsd" ]; then
+  for f in destbin destlib destetc destinfo destman destlisp; do
+	ff=`eval echo '$'$f`
+	eval $f=`echo $ff | sed -e "s|$dest|'\\$(DEST)'|"`
+	if [ "$verbose" = "1" ]; then
+		F=`echo $f | tr a-z A-Z`
+		echo $F = `eval echo '$'$f`
+	fi
+  done
+fi
+#
+# Deal with swig
+#
+if [ "$force" = "" ]; then
+    echo $n "Do you want to use swig to build a python interface? [n/y] "
+    read ans
+else
+    ans=""
+fi
+case $ans in
+	  y*)
+		swigLanguage="python";;
+	  *)
+	        :;;
+esac
+
+case $swigLanguage in
+	"")
+		: ;;
+	python)
+	        python_incdir=`python -c 'import distutils.sysconfig as ds; print ds.get_python_inc()' 2>/dev/null`
+		if [ $? != 0 ]; then
+		    echo "I can't find your python installation, so I'm not building a python extension" >&2
+		    swigLanguage=""
+		else
+		    numpy_incdir=`python -c 'import numpy; print numpy.get_include()' 2>/dev/null`
+		    if [ $? != 0 ]; then
+			echo "I can't find your numpy installation, so I'm not building a python extension" >&2
+			swigLanguage=""
+		    fi
+		fi
+		;;
+	*)
+		echo "Unsupported swig language: $swigLanguage" >&2
+		exit 1;;
+esac
+
+if [ X"$swigLanguage" != X"" ]; then
+    swig=""
+    for d in `echo $PATH | sed -e 's/:/ /g'`; do
+	if [ -x "$d/swig" ]; then
+	    swig=$d/swig; break
+	fi
+    done
+
+    if [ X"$swig" = X"" ]; then
+	echo "I cannot find swig in your path; not building $swigLanguage extension" >&2
+	swigLanguage=""
+    fi
+fi
+
+if [ X"$swigLanguage" = X"" ]; then
+    sed_build_swig=''
+else
+    cflags="$cflags -fPIC"
+    sed_build_swig='s/^\(all : .*\)/\1 swig/'
+fi
+
+#
+# Now we know what to do, so it
+#
+if [ "$nochange" != "" ]; then
+	echo "You told me not to modify any files; exiting" >&2
+	exit 0;
+fi
+if [ "$force" = "" ]; then
+	echo $n "I am about to start modifying files, proceed? [y|n] "
+	read reply
+	case $reply in
+	  n*)
+		echo "I am not making any changes. Goodbye"
+		exit 0;;
+	esac
+fi
+#
+# Prepare to modify Makefiles to allow for the devices chosen
+#
+for f in $desired_devs; do
+	case $f in
+	  SGI)
+		ldflags="$ldflags \$(SGILIB)";;
+	  SUN_VIEW)
+		ldflags="$ldflags \$(SUNVLIB)";;
+	  TK)
+		if [ "$sysincTCL" != "" ]; then
+			cc="$cc -I$sysincTCL"
+			if [ "$sysincTK" != "" ]; then
+				cc="$cc -I$sysincTK"
+			fi
+		fi
+		if [ "$syslibTCL" != "" ]; then
+#			if [ "$bypass_ld_library_path" != "" ]; then
+#				ldflags="$ldflags -R$syslibTCL -R$syslibTK"
+#			fi
+			ldflags="$ldflags -L$syslibTCL"
+			if [ "$syslibTK" != "" ]; then
+				ldflags="$ldflags -L$syslibTK"
+			fi
+		fi
+		ldflags="$ldflags \$(TKLIB)";;
+	    x11|X11)
+		if [ "$sysincX11" != "" ]; then
+			cc="$cc -I$sysincX11"
+		fi
+
+		if [ "$syslibX11" != "" ]; then
+			if [ "$bypass_ld_library_path" != "" ]; then
+				ldflags="$ldflags -R$syslibX11"
+			fi
+			ldflags="$ldflags -L$syslibX11"
+		fi
+		ldflags="$ldflags \$(XLIB11)";;
+	esac
+done
+
+ldflags="$ldflags -lm"
+if [ "$machine" = "cygwin32" ]; then
+	ldflags="$ldflags \$(WIN32LIB)"
+fi
+if [ X"$libdl" != X"" ]; then
+	ldflags="$ldflags $libdl"
+fi
+if [ "$solaris" = "1" ]; then
+	ldflags="$ldflags -lsocket -lnsl"
+fi
+#
+# Trap ^C
+#
+trap   'echo "Aborting setup"
+	for f in Makefile src/Makefile src/options.h; do
+		if [ -f $f.orig ]; then
+			cp $f.orig $f
+		else
+			rm -f $f .config~
+		fi
+	done
+	exit 1' 2 3
+#
+# Update or create .config file
+#
+if uname -a > /dev/null 2>&1; then
+  if [ "$machine" = "freebsd" -o $machine = "linux" -o $machine = "macosx" ]; then
+	uname="(`uname -a | awk '{print $1 " " $2 " " $3}'`)"
+  else
+	uname="(`uname -a`)"
+  fi
+else
+	uname=
+fi
+if [ -f .config -a "$machine" != "cygwin32" ]; then
+	cp .config .config~
+	if grep 'set_opts' .config > /dev/null 2>&1; then
+		sed -e "2s/.*/set_opts -m $machine $uname/" .config~ > .config
+	else
+		sed -e "1{
+				p
+				s/.*/set_opts -m $machine $uname/
+			}" .config~ > .config
+	fi
+	rm -f .config~
+else
+	date > .config
+	echo "set_opts -m $machine $uname" >> .config
+fi
+#
+# Start with Makefile
+#
+echo "Creating Makefile..."
+sed	-e "s#^CC = .*#CC = $cc#" \
+	-e "s|^CFLAGS = .*|CFLAGS = $cflags -I$incfiles|" \
+	-e "s|^DEST = .*|DEST = $dest|" \
+	-e "s|^DESTDIR =.*|DESTDIR = $destbin|" \
+	-e "s|^DESTLIB =.*|DESTLIB = $destlib|" \
+	-e "s|^DESTETC =.*|DESTETC = $destetc|" \
+	-e "s|^DESTINFO =.*|DESTINFO = $destinfo|" \
+	-e "s|^DESTLISP =.*|DESTLISP = $destlisp|" \
+	-e "s|^DESTMAN =.*|DESTMAN = $destman|" \
+	-e "s|^LIBSUFFIX =.*|LIBSUFFIX = $libsuffix|" \
+	-e "$choose_parser" \
+	-e "$sed_build_swig" \
+	< Makefile.skl > Makefile~
+
+if [ -f Makefile ]; then
+	cp $p Makefile Makefile.orig
+fi
+mv Makefile~ Makefile
+#
+# Fix up options.h
+#
+# build the search pattern for awk
+#
+echo "Creating src/options.h..."
+if [ "$desired_devs" = "" ]; then
+	cp src/options.skl src/options.h~
+else
+	devs=""
+	for f in $desired_devs; do
+		if [ "$devs" = "" ]; then
+			devs=$f
+		else
+			devs="$devs|$f"
+		fi
+	done
+	awk 'BEGIN {
+		line = "**NO_PRINT**";
+	   }
+	   /#define ('$devs')/ {
+		if(line ~ /\*\//) {
+			print $0;
+			next;
+		}
+	   }
+	   {
+		'"if(line ~ /($devs)/) {"'
+			if($0 ~ /\*\//) {
+				print $0;
+				print line;
+				line = "**NO_PRINT**";
+				next;
+			}
+		}
+		if(line != "**NO_PRINT**") {
+			print line;
+		}
+		line = $0;
+	   }
+	   END {
+		print line;
+	   }' < src/options.skl > src/options.h~
+	if [ -f src/options.h ]; then
+		cp $p src/options.h src/options.h.orig
+	fi
+fi
+#
+case $sizeof_data in
+    ""|4)
+	NO_VALUE=1e36; break;;
+    8)
+	NO_VALUE=1e300; break;;
+    *)
+	echo "\$sizeof_data cannot be $sizeof_data; complain to RHL" >&2; exit 1;;
+esac
+#
+# and now set values in the options file with sed
+#
+sedopts=""
+sedopts="$sedopts -e 's/#define NO_VALUE.*/#define NO_VALUE $NO_VALUE/'"
+if [ "$LONG" != "" ]; then
+	sedopts="$sedopts -e 's/typedef int LONG/typedef $LONG LONG/'"
+fi
+if [ "$REAL" != "" ]; then
+	sedopts="$sedopts -e 's/typedef float REAL/typedef $REAL REAL/'"
+fi
+if [ "$macrosize" != "" ]; then
+	sedopts="$sedopts -e 's/\(#define MACROSIZE \).*/\1$macrosize/'"
+fi
+if [ "$vec_str_size" != "" ]; then
+	sedopts="$sedopts -e 's/\(#define VEC_STR_SIZE \).*/\1$vec_str_size/'"
+fi
+if [ "$octal" = "1" ]; then
+	sedopts="$sedopts -e 's/\(#define OCTAL_NUMBERS \).*/\1$octal/'"
+fi
+if [ "$f90" = "1" ]; then
+	sedopts="$sedopts -e 's/\(#define SYMBOLS_FOR_F90 \).*/\1$f90/'"
+fi
+
+if [ "$sedopts" = "" ]; then
+	mv src/options.h~ src/options.h
+else
+	eval sed $sedopts src/options.h~ > src/options.h
+	/bin/rm -f src/options.h~
+fi
+#
+# And now src/Makefile
+#
+echo "Creating src/Makefile..."
+#
+if [ -f src/Makefile ]; then
+	cp $p src/Makefile src/Makefile.orig
+fi
+
+sedopts="-e 's|^\(LDFLAGS.*\)|\1 $ldflags|'"
+if [ "$machine" = "freebsd" -o $machine = "macosx"  -o "$machine" = "rs6000" -o "$machine" = "cygwin32" ]; then
+	sedopts="$sedopts -e 's|^\(.PRECIOUS : \)|#\1|'"
+	sedopts="$sedopts -e 's|\([^#]\)\.PRECIOUS|\1|'"
+	sedopts="$sedopts -e 's|\.UPDATEALL||'"
+fi
+if [ "$machine" = "cygwin32" ]; then
+	sedopts="$sedopts -e 's|\(libdevices.a : _Devices ;\)|#\1|'"
+	sedopts="$sedopts -e 's|_Devices :|libdevices.a :|'"
+	sedopts="$sedopts -e 's|\(libplotsub.a : _Plotsub ;\)|#\1|'"
+	sedopts="$sedopts -e 's|_Plotsub :|libplotsub.a :|'"
+	sedopts="$sedopts -e 's|\(libutils.a : _Utils ;\)|#\1|'"
+	sedopts="$sedopts -e 's|_Utils :|libutils.a :|'"
+fi
+if [ X"$bison" != X"" ]; then
+	sedopts="$sedopts -e 's|bison/bison|$bison|'"
+fi
+eval sed $sedopts < src/Makefile.skl > src/Makefile
+#
+# And now callable/Makefile
+#
+echo "Creating callable/Makefile..."
+#
+if [ -f callable/Makefile ]; then
+	cp $p callable/Makefile callable/Makefile.orig
+fi
+
+eval sed $sedopts \
+	-e "'s|^CC = .*|CC = $cc|'" \
+	-e "'s|^CFLAGS = .*|CFLAGS = $cflags -I$incfiles|'" \
+		< callable/Makefile.skl > callable/Makefile
+#
+# And now swigInterfaces/Makefile
+#
+echo "Creating swigInterfaces/Makefile..."
+#
+if [ -f swigInterfaces/Makefile ]; then
+	cp $p swigInterfaces/Makefile swigInterfaces/Makefile.orig
+fi
+
+eval sed $sedopts \
+	-e "'s|^CC = .*|CC = $cc|'" \
+	-e "'s|^CFLAGS = .*|CFLAGS = $cflags -I$incfiles|'" \
+	-e "'s|^PYTHON_INCDIRS = .*|PYTHON_INCDIRS = -I$python_incdir -I$numpy_incdir|'" \
+	-e "'s|^SO = .*|SO = $so|'" \
+	-e "'s|^SO_LDFLAGS = .*|SO_LDFLAGS = $so_ldflags|'" \
+		< swigInterfaces/Makefile.skl > swigInterfaces/Makefile
+#
+# Done. Tell them about copyright stuff if it's there
+#
+if grep "#error You must edit options.h" src/options.h > /dev/null 2>&1 ; then
+	echo ""
+	echo "You will be ready to make SM as soon as you have edited"
+	echo "src/options.h to remove our copyright notice."
+else
+	echo "You are now ready to make SM."
+fi

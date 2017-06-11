@@ -1,0 +1,262 @@
+@node Set, Shade, Save, Commands
+
+@iftex
+@syntax Set.
+@end iftex
+@example
+Syntax: SET name = expr
+        LOCAL @r{SET} name = ...
+        SET name = @{ expr @}
+        SET name = < expr >
+        SET name = expr @r{IF} ( expr )
+        SET name = expr1, expr2 [, expr3 ]
+        SET name = expr1 ? expr2 : expr3
+        SET name @r{LOCAL}
+        SET @r{DIMEN} ( name ) = INTEGER
+        SET name = WORD ( [ WORD [ , WORD @dots{} ] ] )
+        SET name [ expr ] = expr
+        SET name [ expr, expr ] = expr
+        SET IMAGE[expr, expr] = expr
+        SET @r{HELP} WORD [ rest ]
+        SET RANDOM s_expr
+@end example
+@pindex Set
+@findex vectors, defining
+@findex vectors, local
+@findex local, vectors
+@findex scope, restriction for vectors
+@findex Random numbers, setting seed
+
+Conduct various operations on vectors of data.
+The simplest, SET @code{name = expr} sets vector @code{name}
+to be equal to the expression @code{expr}.
+If the IF clause is present, @code{name} will only contain
+those elements of @code{expr} for which it is true (non-zero).
+A special case of an expression is simply a list of values within braces (or
+angle brackets).@footnote{You are not allowed to use commas in such a list,
+so @code{set x=@{1, 2, 3, 4 @}} makes @code{x} a string vector; but
+@code{set x=atof(x)} soon fixes that (or say @code{set x=atof(@{1, 2, 3, 4 @})}
+in the first place). You can use @code{index} and
+@code{substr} to achieve the same result for truly string-valued vectors.}
+For string-valued vectors, the
+only allowable expressions are a string-valued vector, the
+CONCATenation of two string vectors, the addition (i.e. element-by-element
+concatenation), or a string in single quotes
+(e.g. @code{SET s='Hello, World'} or
+@code{SET ss='n_@{' + < e cl co g > + '@}'}).
+
+Within a macro,
+any of these commands that set an entire vector may be preceded by the
+word LOCAL. This ensures that the vector @code{name}
+is only visible within that macro, and any called from it (@pxref{Local}).
+Future references to the name automatically refer to the local vector,
+so only the first occurrence need be preceeded by LOCAL.
+Such local vectors are automatically destroyed when they go out of scope;
+in fact it is illegal to delete one explicitly.
+
+An equivalent way to achieve this is with the command @code{SET name LOCAL},
+after which the vector may be SET in local scope (so
+@code{SET x LOCAL SET x=10 SET x=20} is equivalent to
+@code{LOCAL SET x=10 SET x=20}).
+
+Note that, as usual, you may have to be a
+little careful to ensure that you don't exit a macro before you expect.
+The symptoms would be that your local vector was already destroyed, or that
+it referred to one at less restrictive scope (@pxref{Command Internals}).
+The easiest fix is to add a comment line to the end of the macro.
+@findex weird, wrong local vector
+@findex weird, local vector doesn't exist
+
+With expressions separated by commas the SET command is like a DO loop,
+setting
+@code{name} to be the values between @code{expr1} and @code{expr2}, at
+increments of @code{expr3} (which defaults to 1). You can also use an
+implicit DO as part of an expression, e.g. SET x=1 + do(0,10,2)/10
+(@pxref{Arithmetic}).
+
+The command with ? and : is similar to the C ternary operator.
+If @code{expr1} is true,
+take the corresponding value of @code{name} for @code{expr2}, otherwise
+use @code{expr3}. This command is worth learning, as it can often be
+@findex good ideas
+used to replace a DO loop. This command is in fact simply a special case
+of SET @code{x = expr}.
+
+If you have a DO loop that calculates each element of a vector in turn,
+something that is possible if inefficient in SM,
+@footnote{you can often do better with a @code{?:} or
+@code{SET WORD[expr] = expr} command}
+you need to define a vector before you use it. You will also need to
+declare a vector (or create it by putting it on the left of a SET command)
+if you want to use a vector-valued subscript on the left of an expression.
+This can be done with
+the SET DIMEN(@code{name}) = @code{INTEGER}, which also initialises it to 0.
+Thus SET DIMEN(@code{y}) = DIMEN(@code{x}) is
+equivalent to SET @code{y} = @code{0*x}. You cannot use expressions as the
+dimension, but SET @code{y} = @code{$(4 + 4)} works perfectly well.
+You can optionally specify a qualifier to the dimension, in just the same way
+that you can specify a qualifier to a column in a READ command, so
+SET DIMEN(@code{s}) = @code{10.s} declares a 10-element string-valued vector.
+@findex string vectors, declaring
+See also SET @code{WORD} [ @code{expr} , @code{expr} ] = @code{val}.
+
+SET @code{name} = @code{WORD} ( [ @code{arg} [ @code{, arg @dots{}} ] ] )
+allows you to use a macro 
+as a sort of function definition. Within the macro WORD any
+assignment to @code{$0} has the effect of assigning to @code{name}, and the
+other arguments behave as normal. The arguments @code{arg} can be words
+or numbers (but not general expressions) and are separated by commas.
+@emph{Note that this is a change to
+the syntax of this command!} Previously only one argument was
+permitted, but it could be an expression, and the result was returned
+by assigning to @code{$1} in a rather confusing way.
+
+SET @code{word[expr] = expr} sets the elements @code{expr}
+of vector @code{word} to the values of the vector on the right hand side.
+If the left hand side is a string but the right hand side is numerical
+it will be converted.
+The first @code{expr}
+is converted to an integer before being used as an index; if it is too small
+it's set to 0, if too large to the largest allowable index.
+For example,
+@example
+	set i=0,10 set x=100*i
+	set dimen(y) = dimen(x)
+	set y[i-1] = x
+@end example
+@noindent
+will result in a complaint that -1 is an invalid index
+and set @code{y = @{ 100 200 300 @dots{} @}}. 
+Note that
+arrays are subscripted with [ ] not (), and that, as always, indices start
+at 0 not at 1. The @code{word} must exist before you can do this to it.
+@findex string vectors, setting elements
+
+If your range of indices is contiguous you can say:
+@example
+        set x[0,10] = y
+@end example
+@noindent instead of
+@example
+        set i = 0, 10
+        set x[i] = y
+@end example
+As a bonus the vector x will be extended
+as needed to accomodate the new elements.  This means that
+@example
+        set x = x CONCAT y
+@end example
+@noindent is equivalent to
+@example
+        set x[dimen(x), dimen(x) + dimen(y) - 1] = y
+@end example
+@noindent
+If you have pre-allocated x to be large enough,
+the latter is (maybe much) more efficient.
+
+This also provides a way to generate a vector initialised to a desired
+value:
+@example
+        set x[0, 100] = 10
+@end example
+
+SET IMAGE[ix,iy] is used to set elements of an image to the specified values.
+The image must exist (@pxref{Image}), and the vectors ix and iy are interpreted
+as integer subscripts into the image (0-indexed, of course). This is the
+inverse of the SET z=image[ix, iy] and @emph{isn't} quite
+the same as the SET z=IMAGE(x,y) command, as x and y are interpreted with
+using the (optional) xmin, xmax, ymin, and ymax values. In the old days, this
+command was @code{set image(ix,ix) = ...}, but this was confusing and is
+now deprecated.
+
+SET HELP sets the help string for a vector; the rest of the line is read,
+and will be returned in response to a HELP @code{WORD} request. It can
+also be used in the string-valued expression HELP(@code{name}), for example
+YLABEL $(HELP(yvec)).
+
+SET RANDOM number sets the seed of the random number generator used by the
+RANDOM operator; if you don't set it yourself it'll be set to some value
+based on the time since 1970.
+
+Let's look at some examples.
+@example
+SET y = $v1 + 5.0 * x
+@end example
+@noindent
+This sets each element of the vector @code{y} to be the value of the
+scalar @code{$v1} plus 5.0 times the corresponding element of the
+vector @code{x}  
+(assuming that @code{x} has been defined previously)
+@example
+SET data_set_1 = lg(x) IF ( lg(x) > 0)
+@end example
+@noindent
+This sets the elements of the vector @code{data_set_1} to be the (common)
+logarithm
+of the corresponding element of the vector @code{x}, if that logarithm is
+> 0.  Thus @code{data_set_1} will in general be of smaller size than @code{x}.
+@example
+SET data = (lg(x) > 0) ? lg(x) : 0
+@end example
+In this case, @code{data_set_1} will be the same size as @code{x}, and any
+elements of @code{data_set_1} where the corresponding element of 
+@code{x} is less than or equal to 1, will be set to 0.
+@example
+SET vec = 4*@{ 1 1.5 2 2.5 3 @}
+@end example
+@noindent
+will define a vector @code{vec}, with 5 elements, with the values given
+by four times those in the list.
+@example
+SET vec = 1,12,2 
+@end example
+an alternative way of defining the same values.
+@example
+SET i = @{ 2 3 @}
+SET x = vec[i]
+@end example
+@noindent
+will set the vector @code{x} to have be @code{8 10} (i.e. @code{vec[2]}
+and @code{vec[3]}).
+@example
+MACRO pow 2 @{ SET $0 = $1 ** $2 @} 
+SET vec = pow(vec , 3) 
+@end example
+@noindent
+cube the vector @code{vec}.
+@example
+SET vec[0] = 2*pi
+@end example
+@noindent
+Change your mind about the first element of @code{vec}.
+@example
+SET HELP pam Wichita, Kansas, July 7, 1953
+@end example
+@noindent
+will set the help string for vector @code{pam} to be the string
+@code{Wichita, Kansas, July 7, 1953}, so when you type
+@code{HELP pam}, this string will be printed out.
+@example
+SET rhl=Robert
+@end example
+@noindent
+defines a string vector with one element.
+@example
+SET DIMEN(rhl) = 10.s
+@end example
+@noindent
+defines a string vector with ten elements (all blank), while
+@example
+SET rhl=@{Robert Horace Lupton@}
+@end example
+@noindent
+defines a string vector with initialised elements, and
+@example
+SET rhl[1]=Hugh
+@end example
+@noindent
+corrects it.
+
+See the CURSOR command for defining a pair of vectors using the
+cursor to mark the points, and SPLINE for how to fit splines
+to pairs of vectors.

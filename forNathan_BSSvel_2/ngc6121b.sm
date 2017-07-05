@@ -1,0 +1,176 @@
+plot	erase
+
+	define TeX_strings 1
+
+	data mb_NGC6121_ecnum1.txt.coll.out
+#	lines 2 35762
+	lines 2 17626
+	read {mcoll1 1 vcoll1 2}
+	data mb_NGC6121_ecnum2.txt.coll.out
+#	lines 2 61580
+	lines 2 29516
+	read {mcoll2 1 vcoll2 2}
+	data BSS_velocity_mass_6121.txt
+        lines 2 16
+        read {vcoll3 1 mcoll3 2}
+	data trip_velocity_type6121.txt
+        lines 1 18
+        read {vcoll4 1 type 2}
+
+	set vcoll4a=vcoll4 if (type == 1)
+        set vcoll4b=vcoll4 if (type == 2)
+        set typea=type if (type == 1)
+        set typeb=type if (type == 2)
+
+	set mbs=sum(mcoll3)/dimen(mcoll3)
+	set vbs=sum(vcoll3)/dimen(vcoll3)*2.0**(-0.5)
+        set vbs_rms=(3.0*3.14159)**0.5/2.0/2.0**(0.5)*vbs
+        set sigmabs=3.0**(-0.5)*vbs_rms
+        set vcoll3=2.0**(-0.5)*vcoll3
+        print {mbs}
+
+	set log_mcoll1=lg(mcoll1)
+	set log_vcoll1=lg(vcoll1)
+	set log_mcoll2=lg(mcoll2)
+	set log_vcoll2=lg(vcoll2)
+	set log_mcoll3=lg(mcoll3)
+        set log_vcoll3=lg(vcoll3)
+
+# From Harris:
+        set sigma0=4.0
+        set vrms=3.0**0.5*sigma0
+	set vrms=(0.5/mbs)**0.5*vrms
+	set v=0,10000.0,0.2
+#       set f=const*(exp(-B*))
+# Leigh, Stone, et al. (2016):
+        set dv=1.0
+#        set f=6.0*(3.0/2.0/3.14159)**0.5*v**2.0/sigma0**3.0*exp(-3.0*v**2.0/2.0/sigma0**2.0)
+# Sesana et al. (2006):
+#        set f=(2.0*3.14159*sigma0**2.0)**(-1.5)*exp(-v**2.0/2.0/sigma0**2.0)*4.0*3.14159*v**2.0
+# B&T87:
+#        set f=exp(-0.5*v**2.0/sigma0**2.0)
+	set f=2.0**0.5/3.14159**0.5/sigmabs*exp(-0.5*(v-vbs)**2.0/sigmabs**2.0)*dv
+        set log_v=lg(v)
+# From Webbink (1996):
+        set yesc=0.0,1000.0,0.1
+        set log_vesc=lg(20.3)+0.0*yesc
+        set yesc2=-2.0,200.0,0.1
+        set log_vesc2=lg(20.3)+0.0*yesc2
+	set vesc=20.3+0.0*yesc
+        set vesc2=20.3+0.0*yesc2
+
+	expand 1.05
+	location 10000 32000 10000 32000
+#	limits -0.8 0.6 -1.5 4.0
+#	limits 0 3 0 22
+	limits 0 3 0 2.2
+	box 0 0 0 0
+	lweight 3
+#	get_hist mcoll13a x3 y3 0 10 0.2
+#	set y3=y3/dimen(mcoll13a)
+#	connect x3 y3
+	ptype 10 3
+	points mcoll1 log_vcoll1
+	ctype red
+	ptype 10 0
+	lweight 1
+	points mcoll2 log_vcoll2
+	lweight 3
+	ctype blue
+	points mcoll3 log_vcoll3
+	ctype black
+        ltype 1
+        lweight 5
+        connect yesc2 log_vesc2
+        ltype 0
+	ctype default
+	lweight 1
+#	relocate -0.7 -0.6
+	relocate 1.0 10.0
+	label 1+2
+#	relocate -0.7 -0.9
+	relocate 1.0 5.0
+	ctype red
+	label 2+2
+	ctype default
+
+	
+	location 3000 8500 10000 32000
+#	limits -1.5 4.0 0 1
+#	limits 0 0.25 -1.5 4.0
+#	limits 0 0.5 -1.5 4.0
+#	limits 0 0.5 0 22.0
+	limits 0 0.5 0 2.2
+	box
+	lweight 3
+	get_hist vcoll1 x1 y1 0.0 1000.0 2.0
+	set y1=y1/dimen(vcoll1)
+	set x1=lg(x1)
+	connect y1 x1
+	ctype red
+	get_hist vcoll2 x2 y2 0.0 1000.0 2.0
+	set y2=y2/dimen(vcoll2)
+	set x2=lg(x2)
+	connect	y2 x2
+	ctype blue
+        ltype 2
+        get_hist vcoll3 x5 y5 0.0 1000.0 2.0
+        set y5=y5/dimen(vcoll3)
+	set x5=lg(x5)
+        connect y5 x5
+	ltype 0
+        lweight 3
+        ctype green
+        get_hist vcoll4a x7 y7 0.0 1000.0 2.0
+        set y7=y7/dimen(vcoll4a)
+	set x7=lg(x7)
+        connect y7 x7
+        ltype 1
+        get_hist vcoll4b x8 y8 0.0 1000.0 2.0
+        set y8=y8/dimen(vcoll4b)
+	set x8=lg(x8)
+	connect y8 x8
+        lweight 1
+	ctype black
+	ltype 1
+        lweight 5
+	set v=lg(v)
+        connect f v
+	set vesc=lg(vesc)
+        connect yesc vesc
+        ltype 0
+	ctype default
+	lweight 1
+	expand 1.50
+	ylabel Velocity (in km s^{-1})
+
+	expand 1.05
+	location 10000 32000 3000 8500
+#	limits -0.8 0.6 0 0.2
+#	limits -0.8 0.6 0 0.5
+	limits 0 3 0 0.75
+#	limits 0 0.25 -0.8 0.6
+	box
+	lweight	3
+	get_hist mcoll1 x3 y3 0.0 10.0 0.25
+	set y3=y3/dimen(mcoll1)
+	connect	x3 y3
+	ctype red
+        get_hist mcoll2 x4 y4 0.0 10.0 0.25
+        set y4=y4/dimen(mcoll2)
+        connect x4 y4
+	ctype blue
+        ltype 2
+        get_hist mcoll3 x6 y6 0.0 10.0 0.25
+        set y6=y6/dimen(mcoll3)
+        connect x6 y6
+        ltype 0
+        ctype default
+	lweight	1
+
+	expand 1.5
+	window 1 1 1 1
+	xlabel Stellar Mass (in M_{\odot})
+#	ylabel log Velocity (in km s^{-1})
+	ltype 0
+

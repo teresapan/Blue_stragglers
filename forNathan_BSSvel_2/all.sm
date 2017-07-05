@@ -1,0 +1,133 @@
+plot	erase
+
+	define TeX_strings 1
+
+	data BSS_velocity_mass_3201.txt
+        lines 2 26
+        read {vcoll1 1 mcoll1 2}
+        data trip_velocity_type3201.txt
+        lines 1 12
+        read {vcoll2 1 type2 2}
+	data BSS_velocity_mass_1851.txt
+	lines 2 39
+	read {vcoll3 1 mcoll3 2}
+	data trip_velocity_type1851.txt
+        lines 1 67
+        read {vcoll4 1 type4 2}
+	data BSS_velocity_mass_6121.txt
+        lines 2 16
+        read {vcoll5 1 mcoll5 2}
+        data trip_velocity_type6121.txt
+        lines 1 18
+        read {vcoll6 1 type6 2}	
+
+
+	set mbs=sum(mcoll3)/dimen(mcoll3)
+	set vbs=sum(vcoll3)/dimen(vcoll3)*2.0**(-0.5)
+	set vbs_rms=(3.0*3.14159)**0.5/2.0/2.0**(0.5)*vbs
+	set sigmabs=3.0**(-0.5)*vbs_rms
+	set vcoll3=2.0**(-0.5)*vcoll3
+	print {mbs sigmabs}
+
+	set log_mcoll1=lg(mcoll1)
+	set log_vcoll1=lg(vcoll1)
+	set log_mcoll2=lg(mcoll2)
+	set log_vcoll2=lg(vcoll2)
+	set log_mcoll3=lg(mcoll3)
+        set log_vcoll3=lg(vcoll3)
+
+# From Harris:
+	set sigma0=10.4
+	set vrms=3.0**0.5*sigma0
+	set vrms=(0.5/mbs)**0.5*vrms
+	set v=0,10000.0,0.2
+#	set f=const*(exp(-B*))
+# Leigh, Stone, et al. (2016):
+#        set dv=0.2
+	set dv=1.0
+#	set f=6.0*(3.0/2.0/3.14159)**0.5*v**2.0/sigma0**3.0*exp(-3.0*v**2.0/2.0/sigma0**2.0)
+#/dv
+# Sesana et al. (2006):
+#        set f=(2.0*3.14159*sigma0**2.0)**(-1.5)*exp(-v**2.0/2.0/sigma0**2.0)*4.0*3.14159*v**2.0 	
+# B&T87:
+#        set f=exp(-0.5*v**2.0/sigma0**2.0)
+	set log_v=lg(v)
+	set f=2.0**0.5/3.14159**0.5/sigmabs*exp(-0.5*(v-vbs)**2.0/sigmabs**2.0)*dv
+
+# From Webbink (1996):
+	set yesc=0.0,1000.0,0.1
+	set log_vesc=lg(42.9)+0.0*yesc
+	set vesc=42.9+0.0*yesc
+	set yesc2=-2.0,200.0,0.1
+	set log_vesc2=lg(42.9)+0.0*yesc2
+	set vesc2=42.9+0.0*yesc2
+
+	
+	set vcoll2a=vcoll2/17.3 if (type2 == 1)
+        set vcoll2b=vcoll2/17.3 if (type2 == 2)
+	set vcoll4a=vcoll4/42.9 if (type4 == 1)
+	set vcoll4b=vcoll4/42.9 if (type4 == 2)
+	set vcoll6a=vcoll6/20.3 if (type6 == 1)
+        set vcoll6b=vcoll6/20.3 if (type6 == 2)
+
+	set vcoll1=vcoll1/17.3
+	set vcoll2=vcoll2/17.3
+	set vcoll3=vcoll3/42.9
+	set vcoll4=vcoll4/42.9
+	set vcoll5=vcoll5/20.3
+	set vcoll6=vcoll6/20.3
+
+#	print {vcoll4a typea}
+#	print {vcoll4b typeb}
+
+	expand 1.05
+	limits 0 1.2 0.0 15.0
+	box
+	lweight 5
+	ltype 0
+	get_hist vcoll1 x1 y1 0.0 1000.0 0.1
+	connect x1 y1
+	ltype 2
+	get_hist vcoll2a x2 y2 0.0 1000.0 0.1
+	connect	x2 y2
+	ltype 1
+	get_hist vcoll2b x3 y3 0.0 1000.0 0.1
+        connect x3 y3
+	ctype blue
+	ltype 0
+	get_hist vcoll3 x5 y5 0.0 1000.0 0.1
+	connect x5 y5
+	ltype 2
+	get_hist vcoll4a x7 y7 0.0 1000.0 0.1
+	connect x7 y7
+	ltype 1
+	get_hist vcoll4b x8 y8 0.0 1000.0 0.1
+        connect x8 y8
+	ctype red
+	ltype 0
+        get_hist vcoll5 x4 y4 0.0 1000.0 0.1
+        connect x4 y4
+        ltype 2
+        get_hist vcoll6a x6 y6 0.0 1000.0 0.1
+        connect x6 y6
+        ltype 1
+        get_hist vcoll6b x9 y9 0.0 1000.0 0.1
+        connect x9 y9
+	ltype 0
+	ctype black
+	relocate 0.7 13
+	label NGC 3201
+	ctype blue
+	relocate 0.7 11.5
+	label NGC 1851
+	ctype red
+	relocate 0.7 10
+	label NGC 6121
+	ctype default
+	lweight 1
+	expand 1.50
+	xlabel v/v_{esc}
+	ylabel Number
+
+	ltype 0
+

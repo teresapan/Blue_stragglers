@@ -1,8 +1,0 @@
-To build SM, all that you should have to do is:
-   ./set_opts
-answer questions
-   emacs src/copyright.h
-to acknowledge that you've read our copyright statement
-   make
-   make install
-   
